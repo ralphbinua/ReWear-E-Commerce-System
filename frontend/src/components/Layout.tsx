@@ -31,6 +31,9 @@ export function Layout() {
             </NavLink>
             {isAuthenticated && user ? (
               <>
+                <NavLink to="/sell" className={linkClass}>
+                  Sell
+                </NavLink>
                 <span className="hidden text-sm text-charcoal/60 xs:inline">
                   Hi, {user.display_name}
                 </span>

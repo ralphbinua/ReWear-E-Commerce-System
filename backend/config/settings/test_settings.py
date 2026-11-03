@@ -14,9 +14,7 @@ from .base import MIDDLEWARE as BASE_MIDDLEWARE  # noqa: E402
 
 # Real-time static serving is irrelevant in tests; silence WhiteNoise.
 MIDDLEWARE = [  # noqa: F405
-    item
-    for item in BASE_MIDDLEWARE
-    if item != "whitenoise.middleware.WhiteNoiseMiddleware"
+    item for item in BASE_MIDDLEWARE if item != "whitenoise.middleware.WhiteNoiseMiddleware"
 ]
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

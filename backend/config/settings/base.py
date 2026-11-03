@@ -153,6 +153,24 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Supabase Storage — set SUPABASE_URL + SUPABASE_SERVICE_KEY to use it instead
+# of the local disk. The Supabase dashboard needs a *public* `listings` bucket
+# for photos; the backend service key stays server-side only.
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "listings")
+
+if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+    _default_storage = {"BACKEND": "apps.core.storage.SupabaseStorage"}
+else:
+    _default_storage = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+
+STORAGES = {
+    "default": _default_storage,
+    # prod.py overrides staticfiles with the compressed manifest backend
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
 # Upload limits: 8 photos x ~5 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024

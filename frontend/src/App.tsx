@@ -5,9 +5,11 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import Browse from "./pages/Browse";
 import Home from "./pages/Home";
 import ListingDetail from "./pages/ListingDetail";
+import ListingEdit from "./pages/ListingEdit";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Register from "./pages/Register";
+import Sell from "./pages/Sell";
 
 export default function App() {
   return (
@@ -19,8 +21,11 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Route-protected shell for authenticated pages (sell, orders, profile, …) */}
-        <Route element={<ProtectedRoute />}></Route>
+        {/* Route-protected shell for authenticated pages (orders, profile, …) */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/sell" element={<Sell />} />
+          <Route path="/listing/:id/edit" element={<ListingEdit />} />
+        </Route>
 
         <Route path="*" element={<NotFound />} />
       </Route>

@@ -14,3 +14,6 @@ Pillow>=11.0,<13.0
 
 # Static files
 whitenoise>=6.8,<7.0
+
+# Supabase REST API (storage adapter)
+requests>=2.32,<3.0

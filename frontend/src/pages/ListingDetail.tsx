@@ -2,10 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import { Button } from "../components/ui/button";
+import { useAuth } from "../context/useAuth";
 import { listingsService } from "../services/listings";
 
 export default function ListingDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
 
   const { data, isPending, isError } = useQuery({
     queryKey: ["listing", id],
@@ -81,6 +83,11 @@ export default function ListingDetail() {
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
+            {user && user.id === data.seller.id && (
+              <Link to={`/listing/${data.id}/edit`}>
+                <Button variant="ghost">Edit listing</Button>
+              </Link>
+            )}
             <Button disabled title="Order flow ships in the next sprint">
               Buy now (soon)
             </Button>

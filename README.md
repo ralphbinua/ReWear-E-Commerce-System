@@ -3,7 +3,7 @@
 Secondhand fashion marketplace — buy, sell, trade, donate, and auction pre-loved apparel.
 The full product and delivery plan lives in [`PLAN.md`](PLAN.md).
 
-**Current status:** full backend foundation + auction-close cron endpoint wired (Django + DRF + JWT, 32 tests). Frontend scaffolded with Tailwind v4 + TanStack Query and already talking to the API (Home / Browse / Listing detail / auth). Orders, bid placement, chat, and Cow-sell flow are next.
+**Current status:** full backend foundation + auction-close cron endpoint wired (Django + DRF + JWT, 32 tests). Seller flow done — create a listing end-to-end with photos (`/sell`). Frontend has Home, Browse, Listing detail, auth, images. Orders flow, bid placement, and chat are next.
 
 ---
 

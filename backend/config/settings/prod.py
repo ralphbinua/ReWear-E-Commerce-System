@@ -5,6 +5,7 @@ import os
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
+from .base import STORAGES as BASE_STORAGES
 from .base import env_bool, env_list
 
 DEBUG = False
@@ -29,6 +30,6 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 DATABASES["default"]["CONN_MAX_AGE"] = 600  # noqa: F405
 
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    **BASE_STORAGES,
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }

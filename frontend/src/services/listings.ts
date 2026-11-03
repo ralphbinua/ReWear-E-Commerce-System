@@ -47,6 +47,14 @@ export interface ListingDetail extends Listing {
   }>;
 }
 
+export interface ListingImage {
+  id: number;
+  image: string;
+  alt_text: string;
+  position: number;
+  is_primary: boolean;
+}
+
 export interface Paged<T> {
   count: number;
   next: string | null;
@@ -67,10 +75,49 @@ export interface ListingsQuery {
   ending_soon?: boolean;
 }
 
+export interface CreateListingPayload {
+  title: string;
+  description: string;
+  category: number;
+  brand?: number | null;
+  size?: number | null;
+  condition: Listing["condition"];
+  audience: Listing["audience"];
+  color?: string;
+  type: Listing["type"];
+  price: string;
+  is_negotiable: boolean;
+  starting_bid?: string | null;
+  reserve_price?: string | null;
+  min_increment?: string | null;
+  end_at?: string | null;
+  location?: string;
+}
+
 export const listingsService = {
   list: (params: ListingsQuery = {}) =>
     api.get<Paged<Listing>>("/v1/listings/", { params }).then((r) => r.data),
 
   get: (id: string) =>
     api.get<ListingDetail>(`/v1/listings/${id}/`).then((r) => r.data),
+
+  create: (payload: CreateListingPayload) =>
+    api.post<ListingDetail>("/v1/listings/", payload).then((r) => r.data),
+
+  update: (id: string, payload: Partial<CreateListingPayload>) =>
+    api.patch<ListingDetail>(`/v1/listings/${id}/`, payload).then((r) => r.data),
+
+  uploadImage: (listingId: string, file: File, altText = "") => {
+    const form = new FormData();
+    form.append("image", file);
+    form.append("alt_text", altText);
+    return api
+      .post<ListingImage>(`/v1/listings/${listingId}/images/`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data);
+  },
+
+  removeImage: (imageId: number) =>
+    api.delete(`/v1/listing-images/${imageId}/`).then(() => undefined),
 };

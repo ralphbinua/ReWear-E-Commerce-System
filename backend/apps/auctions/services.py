@@ -38,9 +38,8 @@ def close_expired_auctions(now=None):
             bids = list(Bid.objects.filter(listing=listing).order_by("-amount", "created_at"))
             winner_bid = bids[0] if bids else None
             reserve = listing.reserve_price
-            reserve_met = (
-                winner_bid is not None
-                and (reserve is None or winner_bid.amount >= reserve)
+            reserve_met = winner_bid is not None and (
+                reserve is None or winner_bid.amount >= reserve
             )
 
             if winner_bid and reserve_met:

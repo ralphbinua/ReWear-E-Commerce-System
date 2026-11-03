@@ -2,6 +2,7 @@
 
 from .base import *  # noqa: F403
 from .base import MIDDLEWARE as BASE_MIDDLEWARE
+from .base import STORAGES as BASE_STORAGES
 from .base import env_bool
 
 DEBUG = True
@@ -18,8 +19,8 @@ MIDDLEWARE = [
     item for item in BASE_MIDDLEWARE if item != "whitenoise.middleware.WhiteNoiseMiddleware"
 ]
 
-# Generated file uploads are fine on disk while developing.
+# Generated file uploads are fine on disk while developing (unless Supabase Storage is configured).
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    **BASE_STORAGES,
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
