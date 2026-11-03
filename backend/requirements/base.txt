@@ -1,0 +1,16 @@
+# Core runtime dependencies
+Django>=5.2,<5.3
+djangorestframework>=3.15,<4.0
+djangorestframework-simplejwt>=5.4,<6.0
+django-cors-headers>=4.4,<5.0
+django-filter>=24.3
+drf-spectacular>=0.27,<1.0
+dj-database-url>=2.3,<4.0
+python-dotenv>=1.0,<2.0
+psycopg[binary]>=3.2,<4.0
+
+# Files
+Pillow>=11.0,<13.0
+
+# Static files
+whitenoise>=6.8,<7.0

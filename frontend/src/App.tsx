@@ -1,0 +1,29 @@
+import { Route, Routes } from "react-router-dom";
+
+import { Layout } from "./components/Layout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import Browse from "./pages/Browse";
+import Home from "./pages/Home";
+import ListingDetail from "./pages/ListingDetail";
+import Login from "./pages/Login";
+import NotFound from "./pages/NotFound";
+import Register from "./pages/Register";
+
+export default function App() {
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/browse" element={<Browse />} />
+        <Route path="/listing/:id" element={<ListingDetail />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Route-protected shell for authenticated pages (sell, orders, profile, …) */}
+        <Route element={<ProtectedRoute />}></Route>
+
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
+  );
+}
