@@ -1,9 +1,10 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "../context/useAuth";
 
 export function ProtectedRoute() {
   const { isReady, isAuthenticated } = useAuth();
+  const location = useLocation();
 
   if (!isReady) {
     return (
@@ -13,7 +14,7 @@ export function ProtectedRoute() {
     );
   }
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />;
   }
   return <Outlet />;
 }

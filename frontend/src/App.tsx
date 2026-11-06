@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import AdminConsole from "./pages/AdminConsole";
+import AdminLogin from "./pages/AdminLogin";
 import Browse from "./pages/Browse";
 import Home from "./pages/Home";
 import ListingDetail from "./pages/ListingDetail";
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/browse" element={<Browse />} />
         <Route path="/listing/:id" element={<ListingDetail />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/admin" element={<AdminLogin />} />
         <Route path="/register" element={<Register />} />
 
         {/* Route-protected shell for authenticated pages (orders, profile, …) */}

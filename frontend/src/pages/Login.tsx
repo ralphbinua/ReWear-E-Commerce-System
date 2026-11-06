@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -8,6 +8,7 @@ import { useAuth } from "../context/useAuth";
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export default function Login() {
     setBusy(true);
     try {
       await login(email, password);
-      navigate("/browse", { replace: true });
+      navigate(searchParams.get("next") || "/browse", { replace: true });
     } catch {
       setError("Wrong credentials, or the API isn't running.");
     } finally {
@@ -71,12 +72,6 @@ export default function Login() {
           New here?{" "}
           <Link to="/register" className="font-semibold text-leaf-700 underline">
             Create an account
-          </Link>
-        </p>
-        <p className="mt-3 text-center text-sm text-charcoal/70">
-          Are you a system admin?{" "}
-          <Link to="/admin-console" className="font-semibold text-leaf-700 underline">
-            Open system admin
           </Link>
         </p>
       </form>
