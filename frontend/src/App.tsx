@@ -34,7 +34,7 @@ export default function App() {
           <Route path="/sell" element={<Sell />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:conversationId" element={<Messages />} />
-          <Route path="/admin-console" element={<AdminConsole />} />
+          <Route path="/admin-dashboard" element={<AdminConsole />} />
           <Route path="/seller-dashboard" element={<SellerDashboard />} />
           <Route path="/my-listings" element={<MyListings />} />
           <Route path="/orders" element={<Orders />} />

@@ -14,7 +14,7 @@ export default function AdminLogin() {
   const [busy, setBusy] = useState(false);
 
   if (isReady && isAuthenticated && user?.is_staff) {
-    return <Navigate to="/admin-console" replace />;
+    return <Navigate to="/admin-dashboard" replace />;
   }
 
   async function submit(event: FormEvent) {
@@ -23,7 +23,7 @@ export default function AdminLogin() {
     setBusy(true);
     try {
       await login(email, password);
-      navigate("/admin-console", { replace: true });
+      navigate("/admin-dashboard", { replace: true });
     } catch {
       setError("Wrong credentials, or the API isn't running.");
     } finally {
