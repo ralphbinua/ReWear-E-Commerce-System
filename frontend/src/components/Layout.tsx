@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../context/useAuth";
 import { Button } from "./ui/button";
+import { NotificationBell } from "./NotificationBell";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   [
@@ -37,6 +38,7 @@ export function Layout() {
                 <NavLink to="/orders" className={linkClass}>
                   Orders
                 </NavLink>
+                <NotificationBell />
                 <span className="hidden text-sm text-charcoal/60 xs:inline">
                   Hi, {user.display_name}
                 </span>

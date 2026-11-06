@@ -195,6 +195,8 @@ export default function Orders() {
   const { data, isPending, isError } = useQuery({
     queryKey: ["orders", role],
     queryFn: () => ordersService.listForCurrentUser(role),
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
   return (

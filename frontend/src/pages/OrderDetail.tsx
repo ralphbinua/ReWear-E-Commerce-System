@@ -40,6 +40,17 @@ export default function OrderDetail() {
     queryKey: ["order", id],
     queryFn: () => ordersService.get(id as string),
     enabled: Boolean(id),
+    refetchOnWindowFocus: true,
+    // Keep the page live so a seller sees new payment proof without reloading.
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      const inFlight =
+        status === "pending_payment" ||
+        status === "payment_review" ||
+        status === "paid" ||
+        status === "shipped";
+      return inFlight ? 10_000 : false;
+    },
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["order", id] });
@@ -54,6 +65,7 @@ export default function OrderDetail() {
     onSuccess: () => {
       setProofFile(null);
       invalidate();
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
   });
 
@@ -63,12 +75,16 @@ export default function OrderDetail() {
     onSuccess: () => {
       setRejectReason("");
       invalidate();
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
   });
 
   const ship = useMutation({
     mutationFn: () => ordersService.ship(id as string, courier, trackingNumber.trim()),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
   });
 
   const confirm = useMutation({
@@ -256,6 +272,17 @@ export default function OrderDetail() {
                 Cancel order
               </Button>
             </div>
+            {uploadProof.isError && (
+              <p role="alert" className="text-sm text-red-700">
+                Couldn't upload your proof. Use a clear JPG/PNG screenshot under 5 MB and
+                try again.
+              </p>
+            )}
+            {cancel.isError && (
+              <p role="alert" className="text-sm text-red-700">
+                Couldn't cancel the order. Try again in a moment.
+              </p>
+            )}
           </form>
         </div>
       )}
