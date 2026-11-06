@@ -123,6 +123,12 @@ class ListingDetailSerializer(ListingListSerializer):
 
 
 class ListingWriteSerializer(serializers.ModelSerializer):
+    # The Sell form always includes auction fields, sending null for fixed listings.
+    # The model column is non-nullable with a default, so treat null as "use default".
+    min_increment = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True
+    )
+
     class Meta:
         model = Listing
         fields = (
@@ -149,6 +155,10 @@ class ListingWriteSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         instance = self.instance
+
+        # `null` for a non-nullable field with a default: keep the default/existing value.
+        if "min_increment" in attrs and attrs["min_increment"] is None:
+            attrs.pop("min_increment")
 
         def current(name, default=None):
             if name in attrs:

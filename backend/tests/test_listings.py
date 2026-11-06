@@ -62,6 +62,26 @@ def test_create_sets_seller_and_auto_approves_in_dev(auth_client, user, category
     assert created.slug
 
 
+def test_create_fixed_listing_accepts_null_auction_fields(auth_client, category):
+    """The Sell form always sends auction fields, using null for fixed listings."""
+    response = auth_client.post(
+        LISTINGS_URL,
+        make_listing_payload(
+            category,
+            starting_bid=None,
+            reserve_price=None,
+            min_increment=None,
+            end_at=None,
+        ),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED, response.data
+    created = Listing.objects.get(id=response.data["id"])
+    assert created.type == Listing.Type.FIXED
+    assert created.min_increment == Listing._meta.get_field("min_increment").get_default()
+
+
 def test_fixed_price_requires_positive_price(auth_client, category):
     response = auth_client.post(
         LISTINGS_URL,

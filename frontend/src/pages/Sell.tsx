@@ -148,10 +148,14 @@ export default function Sell() {
       setStep("photos");
     } catch (creationError: unknown) {
       const data = (creationError as { response?: { data?: unknown } })?.response?.data;
-      const msg = data
-        ? Object.values(data as Record<string, unknown>).flat()[0]
-        : undefined;
-      setError(Array.isArray(msg) ? String(msg[0]) : "Couldn't create the listing.");
+      let message = "Couldn't create the listing.";
+      if (typeof data === "string") {
+        message = data;
+      } else if (data && typeof data === "object") {
+        const first = Object.values(data as Record<string, unknown>).flat()[0];
+        if (typeof first === "string") message = first;
+      }
+      setError(message);
     } finally {
       setSaving(false);
     }
