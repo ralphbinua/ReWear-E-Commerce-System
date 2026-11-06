@@ -44,6 +44,9 @@ export function Layout() {
                 <NavLink to="/messages" className={linkClass}>
                   Messages
                 </NavLink>
+                <NavLink to="/seller-dashboard" className={linkClass}>
+                  Dashboard
+                </NavLink>
                 <NotificationBell />
                 <span className="hidden text-sm text-charcoal/60 xs:inline">
                   Hi, {user.display_name}

@@ -79,6 +79,54 @@ export interface PagedOrders {
   results: Order[];
 }
 
+export interface SellerDashboard {
+  seller: {
+    id: number;
+    display_name: string;
+    rating_avg: string;
+    rating_count: number;
+  };
+  stats: {
+    active_listings: number;
+    sold_listings: number;
+    ended_listings: number;
+    total_listings: number;
+    total_views: number;
+    total_sales: number;
+    paid_sales: number;
+    completed_sales: number;
+    pending_payment_orders: number;
+    payment_review_orders: number;
+    paid_orders: number;
+    gross_revenue: string;
+    platform_fees: string;
+    net_earnings: string;
+    pending_amount: string;
+    review_amount: string;
+    average_sale_price: string;
+  };
+  orders_by_status: Record<string, number>;
+  recent_sales: Order[];
+  top_listings: Array<{
+    id: string;
+    title: string;
+    type: string;
+    status: string;
+    price: string;
+    view_count: number;
+    bid_count: number;
+    order_count: number;
+  }>;
+  payout_accounts: Array<{
+    id: number;
+    method: string;
+    method_label: string;
+    account_name: string;
+    account_number: string;
+    is_verified: boolean;
+  }>;
+}
+
 export const ordersService = {
   checkout: (listingId: string) =>
     api.post<Order>("/v1/orders/checkout/", { listing: listingId }).then((r) => r.data),
@@ -126,4 +174,7 @@ export const ordersService = {
 
   review: (id: string, payload: { rating: number; comment?: string }) =>
     api.post<OrderReview>(`/v1/orders/${id}/review/`, payload).then((r) => r.data),
+
+  sellerDashboard: () =>
+    api.get<SellerDashboard>("/v1/orders/seller-dashboard/").then((r) => r.data),
 };

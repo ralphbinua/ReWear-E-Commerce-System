@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Q, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -20,6 +20,10 @@ from .serializers import (
     PaymentProofSerializer,
     ReviewSerializer,
 )
+
+
+def _money(value):
+    return str((value or Decimal("0.00")).quantize(Decimal("0.01")))
 
 
 def _mark_sale(listing):
@@ -44,6 +48,129 @@ class OrderViewSet(
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields: list[str] = []
+
+    @action(detail=False, methods=["get"], url_path="seller-dashboard")
+    def seller_dashboard(self, request):
+        seller = request.user
+        sales = Order.objects.filter(seller=seller)
+
+        paid_statuses = [
+            Order.Status.PAID,
+            Order.Status.SHIPPED,
+            Order.Status.DELIVERED,
+            Order.Status.COMPLETED,
+        ]
+        paid_sales = sales.filter(status__in=paid_statuses)
+        paid_totals = paid_sales.aggregate(
+            gross=Sum("item_price"),
+            fees=Sum("platform_fee"),
+            count=Count("id"),
+            average=Avg("item_price"),
+        )
+        gross_revenue = paid_totals["gross"] or Decimal("0.00")
+        platform_fees = paid_totals["fees"] or Decimal("0.00")
+
+        pending_totals = sales.filter(status=Order.Status.PENDING_PAYMENT).aggregate(
+            amount=Sum("item_price"),
+            count=Count("id"),
+        )
+        review_totals = sales.filter(status=Order.Status.PAYMENT_REVIEW).aggregate(
+            amount=Sum("item_price"),
+            count=Count("id"),
+        )
+        orders_by_status = {
+            status_value: sales.filter(status=status_value).count()
+            for status_value in Order.Status.values
+        }
+
+        listings = Listing.objects.filter(seller=seller)
+        listing_stats = listings.aggregate(
+            active_listings=Count(
+                "id", filter=Q(status=Listing.Status.ACTIVE)
+            ),
+            sold_listings=Count("id", filter=Q(status=Listing.Status.SOLD)),
+            ended_listings=Count("id", filter=Q(status=Listing.Status.ENDED)),
+            total_listings=Count("id"),
+            total_views=Sum("view_count"),
+        )
+
+        top_listings = (
+            listings.annotate(
+                bid_count=Count("bids", distinct=True),
+                order_count=Count("orders", distinct=True),
+            )
+            .order_by("-view_count", "-order_count", "-created_at")[:5]
+        )
+        top_listings_data = [
+            {
+                "id": str(listing.id),
+                "title": listing.title,
+                "type": listing.type,
+                "status": listing.status,
+                "price": _money(listing.price),
+                "view_count": listing.view_count,
+                "bid_count": listing.bid_count,
+                "order_count": listing.order_count,
+            }
+            for listing in top_listings
+        ]
+
+        recent_sales = (
+            sales.select_related("listing", "buyer", "seller")
+            .prefetch_related("listing__images", "reviews__reviewer")
+            .order_by("-created_at")[:5]
+        )
+        recent_sales_data = OrderSerializer(
+            recent_sales, many=True, context={"request": request}
+        ).data
+
+        payout_accounts = [
+            {
+                "id": account.id,
+                "method": account.method,
+                "method_label": account.get_method_display(),
+                "account_name": account.account_name,
+                "account_number": account.account_number,
+                "is_verified": account.is_verified,
+            }
+            for account in seller.payout_accounts.all()
+        ]
+
+        return Response(
+            {
+                "seller": {
+                    "id": seller.id,
+                    "display_name": seller.display_name,
+                    "rating_avg": _money(seller.rating_avg),
+                    "rating_count": seller.rating_count,
+                },
+                "stats": {
+                    "active_listings": listing_stats["active_listings"] or 0,
+                    "sold_listings": listing_stats["sold_listings"] or 0,
+                    "ended_listings": listing_stats["ended_listings"] or 0,
+                    "total_listings": listing_stats["total_listings"] or 0,
+                    "total_views": listing_stats["total_views"] or 0,
+                    "total_sales": sales.count(),
+                    "paid_sales": paid_totals["count"] or 0,
+                    "completed_sales": sales.filter(
+                        status=Order.Status.COMPLETED
+                    ).count(),
+                    "pending_payment_orders": pending_totals["count"] or 0,
+                    "payment_review_orders": review_totals["count"] or 0,
+                    "paid_orders": sales.filter(status=Order.Status.PAID).count(),
+                    "gross_revenue": _money(gross_revenue),
+                    "platform_fees": _money(platform_fees),
+                    "net_earnings": _money(gross_revenue - platform_fees),
+                    "pending_amount": _money(pending_totals["amount"]),
+                    "review_amount": _money(review_totals["amount"]),
+                    "average_sale_price": _money(paid_totals["average"]),
+                },
+                "orders_by_status": orders_by_status,
+                "recent_sales": recent_sales_data,
+                "top_listings": top_listings_data,
+                "payout_accounts": payout_accounts,
+            }
+        )
 
     def get_queryset(self):
         user = self.request.user

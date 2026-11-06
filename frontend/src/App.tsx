@@ -14,6 +14,7 @@ import OrderDetail from "./pages/OrderDetail";
 import Orders from "./pages/Orders";
 import Register from "./pages/Register";
 import Sell from "./pages/Sell";
+import SellerDashboard from "./pages/SellerDashboard";
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/sell" element={<Sell />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:conversationId" element={<Messages />} />
+          <Route path="/seller-dashboard" element={<SellerDashboard />} />
           <Route path="/my-listings" element={<MyListings />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/:id" element={<OrderDetail />} />
