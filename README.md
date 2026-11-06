@@ -3,23 +3,26 @@
 Secondhand fashion marketplace — buy, sell, trade, donate, and auction pre-loved apparel.
 The full product and delivery plan lives in [`PLAN.md`](PLAN.md).
 
-**Current status:** full backend foundation + auction-close cron endpoint wired (Django + DRF + JWT, 32 tests). Seller flow done — create a listing end-to-end with photos (`/sell`). Frontend has Home, Browse, Listing detail, auth, images. Orders flow, bid placement, and chat are next.
+**Current status:** Marketplace core is feature-complete for fixed-price sales, auctions, chat, seller dashboard, and system admin. Sellers can create/edit listings, buyers can bid/check out/upload payment proof, both sides can message and review, and staff can moderate from the built-in ReWear admin console.
 
 ---
 
-## Stack
+## Tech stack
 
-| Layer | Tech |
+| Layer | Technology |
 |---|---|
-| API | Django 5.2 + Django REST Framework |
-| Auth | SimpleJWT (email login, 15-min access / 7-day refresh, blacklist on logout) |
-| DB | Supabase Postgres (transaction pooler, port 6543) via `DATABASE_URL` |
-| Scheduled jobs | **Vercel Cron** (HTTP endpoints, no worker) — bid closing, unpaid-order cancel, payment auto-release |
-| Realtime | **Supabase Realtime** on `bids` inserts · SSE/polling fallback |
-| Hosting | **Vercel only** — one project, Django as a Python Functions service + React as the static frontend |
-| Frontend | React 19 + TypeScript · Vite · Tailwind v4 · TanStack Query · Axios |
-| Files | Local disk now · Supabase Storage for deploys |
-| Docs | OpenAPI at `/api/docs/` |
+| Backend | Django 5.2 LTS, Django REST Framework, drf-spectacular |
+| Auth | SimpleJWT for buyers/sellers; server-side staff checks for the system admin console |
+| Database | Supabase Postgres only, connected with `DATABASE_URL` |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, TanStack Query, Axios, lucide-react |
+| Files | Supabase Storage in production; local media in development |
+| Scheduled jobs | Vercel Cron calling Django endpoints |
+| Hosting | Vercel only: frontend service + Django backend service in one project, same-origin `/api` rewrites |
+| API docs | drf-spectacular at `/api/docs/` |
+| Tests / quality | Pytest, Ruff, TypeScript, ESLint |
+| Realtime | Polling today for bid/chat updates; Supabase Realtime is the planned upgrade path |
+
+Detailed product and architecture decisions are in [`PLAN.md`](PLAN.md).
 
 ---
 

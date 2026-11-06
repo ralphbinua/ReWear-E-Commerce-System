@@ -207,7 +207,7 @@ export default function ListingDetail() {
                 {!isSeller && (
                   <button
                     type="button"
-                    onClick={() => (user ? navigate(`/messages?listing=${data.id}`) : navigate("/login"))}
+                    onClick={() => (user ? navigate(`/messages?listing=${data.id}`) : navigate("/rewear/login"))}
                     className="inline-flex items-center gap-1 text-sm font-semibold text-leaf-700 underline underline-offset-4"
                   >
                     <MessageCircle className="h-4 w-4" /> Message seller
@@ -222,7 +222,7 @@ export default function ListingDetail() {
                   <Button
                     className="flex-1"
                     disabled={checkout.isPending}
-                    onClick={() => (user ? checkout.mutate() : navigate("/login"))}
+                    onClick={() => (user ? checkout.mutate() : navigate("/rewear/login"))}
                   >
                     {checkout.isPending
                       ? "Creating order…"
@@ -250,7 +250,7 @@ export default function ListingDetail() {
                   <Button
                     variant="ghost"
                     onClick={() =>
-                      user ? navigate(`/messages?listing=${data.id}`) : navigate("/login")
+                      user ? navigate(`/messages?listing=${data.id}`) : navigate("/rewear/login")
                     }
                   >
                     <MessageCircle className="h-4 w-4" /> Message seller
@@ -399,7 +399,7 @@ function AuctionPanel({ listing }: { listing: ListingDetailData }) {
         </p>
       ) : !user ? (
         <p className="mt-3 text-sm text-charcoal/70">
-          <Link to="/login" className="font-semibold text-leaf-700 underline">
+          <Link to="/rewear/login" className="font-semibold text-leaf-700 underline">
             Sign in
           </Link>{" "}
           to place a bid.
@@ -442,7 +442,7 @@ function AuctionPanel({ listing }: { listing: ListingDetailData }) {
         <Button
           variant="ghost"
           className="mt-4"
-          onClick={() => (user ? navigate(`/messages?listing=${listing.id}`) : navigate("/login"))}
+          onClick={() => (user ? navigate(`/messages?listing=${listing.id}`) : navigate("/rewear/login"))}
         >
           <MessageCircle className="h-4 w-4" /> Message seller
         </Button>

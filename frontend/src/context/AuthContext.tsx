@@ -20,8 +20,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (username: string, password: string) => {
       const { user: nextUser, access, refresh } = await authService.login(
+        username,
+        password,
+      );
+      tokenStore.setSession(access, refresh);
+      setUser(nextUser);
+      queryClient.clear();
+    },
+    [queryClient],
+  );
+
+  const adminLogin = useCallback(
+    async (email: string, password: string) => {
+      const { user: nextUser, access, refresh } = await authService.adminLogin(
         email,
         password,
       );
@@ -92,10 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(user),
       isReady,
       login,
+      adminLogin,
       register,
       logout,
     }),
-    [login, logout, register, user, isReady],
+    [login, adminLogin, logout, register, user, isReady],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

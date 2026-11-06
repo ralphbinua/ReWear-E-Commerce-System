@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Address, PayoutAccount
 
@@ -23,6 +23,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "id",
+            "username",
             "email",
             "first_name",
             "last_name",
@@ -39,6 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "username",
             "email",
             "is_email_verified",
             "is_id_verified",
@@ -54,24 +56,79 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("email", "password", "first_name", "last_name", "phone")
+        fields = ("username", "email", "password", "first_name", "last_name", "phone")
         extra_kwargs = {
+            "username": {"required": False, "allow_blank": True},
             "first_name": {"required": False},
             "last_name": {"required": False},
             "phone": {"required": False},
         }
 
     def create(self, validated_data):
+        if not validated_data.get("username"):
+            validated_data.pop("username", None)
         return User.objects.create_user(**validated_data)
 
 
-class LoginSerializer(TokenObtainPairSerializer):
-    """Adds the user object to the standard access/refresh response."""
+class LoginSerializer(serializers.Serializer):
+    """Buyer/seller login by username; staff login by email."""
+
+    login_type = serializers.ChoiceField(
+        choices=["user", "admin"], required=False, default="user"
+    )
+    username = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
+    email = serializers.EmailField(required=False, allow_blank=True, trim_whitespace=True)
+    password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        data = super().validate(attrs)
-        data["user"] = UserSerializer(self.user).data
-        return data
+        login_type = attrs.get("login_type") or (
+            "admin" if attrs.get("email") else "user"
+        )
+        password = attrs["password"]
+        user = None
+
+        if login_type == "admin":
+            email = (attrs.get("email") or "").strip()
+            if not email:
+                raise serializers.ValidationError(
+                    {"email": "Admin login requires an email address."}
+                )
+            user = User.objects.filter(email__iexact=email).first()
+            if not user or not user.check_password(password):
+                raise serializers.ValidationError(
+                    {"detail": "Invalid email or password."}
+                )
+            if not user.is_staff:
+                raise serializers.ValidationError(
+                    {"detail": "This account is not an admin."}
+                )
+        else:
+            username = (attrs.get("username") or "").strip()
+            if not username:
+                raise serializers.ValidationError(
+                    {"username": "Username is required for buyer/seller login."}
+                )
+            user = User.objects.filter(username__iexact=username).first()
+            if not user or not user.check_password(password):
+                raise serializers.ValidationError(
+                    {"detail": "Invalid username or password."}
+                )
+            if user.is_staff:
+                raise serializers.ValidationError(
+                    {"detail": "Admins use the admin login page."}
+                )
+
+        if user is None or not user.is_active:
+            raise serializers.ValidationError(
+                {"detail": "This account is inactive."}
+            )
+
+        refresh = RefreshToken.for_user(user)
+        return {
+            "user": UserSerializer(user).data,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+        }
 
 
 class AddressSerializer(serializers.ModelSerializer):

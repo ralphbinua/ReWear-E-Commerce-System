@@ -48,7 +48,7 @@ export function Layout() {
                   Dashboard
                 </NavLink>
                 {user.is_staff && (
-                  <NavLink to="/admin-console" className={linkClass}>
+                  <NavLink to="/admin" className={linkClass}>
                     Admin
                   </NavLink>
                 )}
@@ -62,7 +62,7 @@ export function Layout() {
               </>
             ) : (
               <Link
-                to="/login"
+                to="/rewear/login"
                 className="rounded-full border border-leaf-600 px-4 py-1.5 text-sm font-semibold text-leaf-700 transition hover:bg-leaf-50"
               >
                 Sign in

@@ -61,14 +61,13 @@ export default function AdminConsole() {
             System admin only
           </h1>
           <p className="mt-2 text-sm text-amber-900/80">
-            Sign in with an account that has staff access. This is ReWear’s built-in system
-            console — no Django admin page is needed.
+            Sign in with a staff account. This is ReWear’s built-in system admin console.
           </p>
           <Link
-            to="/login"
+            to="/admin/login"
             className="mt-5 inline-block rounded-full bg-leaf-600 px-5 py-2.5 text-sm font-semibold text-cream hover:bg-leaf-700"
           >
-            Go to login
+            Admin login
           </Link>
         </div>
       </div>

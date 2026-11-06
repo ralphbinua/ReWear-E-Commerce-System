@@ -9,7 +9,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -19,7 +19,7 @@ export default function Login() {
     setError(null);
     setBusy(true);
     try {
-      await login(email, password);
+      await login(username, password);
       navigate(searchParams.get("next") || "/browse", { replace: true });
     } catch {
       setError("Wrong credentials, or the API isn't running.");
@@ -43,14 +43,13 @@ export default function Login() {
 
         <div className="mt-6 grid gap-4">
           <label className="grid gap-1.5 text-sm font-medium">
-            Email
+            Username
             <Input
-              type="email"
               required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your username"
             />
           </label>
           <label className="grid gap-1.5 text-sm font-medium">
@@ -61,6 +60,7 @@ export default function Login() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
             />
           </label>
         </div>

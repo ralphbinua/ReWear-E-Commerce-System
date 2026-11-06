@@ -9,6 +9,7 @@ export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
+    username: "",
     first_name: "",
     last_name: "",
     email: "",
@@ -74,6 +75,16 @@ export default function Register() {
             </label>
           </div>
           <label className="grid gap-1.5 text-sm font-medium">
+            Username
+            <Input
+              required
+              autoComplete="username"
+              value={form.username}
+              onChange={update("username")}
+              placeholder="your_username"
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium">
             Email
             <Input
               type="email"
@@ -103,7 +114,7 @@ export default function Register() {
         </Button>
         <p className="mt-4 text-center text-sm text-charcoal/70">
           Already have an account?{" "}
-          <Link to="/login" className="font-semibold text-leaf-700 underline">
+          <Link to="/rewear/login" className="font-semibold text-leaf-700 underline">
             Sign in
           </Link>
         </p>

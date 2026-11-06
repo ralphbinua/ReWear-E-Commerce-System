@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { useAuth } from "../context/useAuth";
 
 export default function AdminLogin() {
-  const { user, isAuthenticated, isReady, login } = useAuth();
+  const { user, isAuthenticated, isReady, adminLogin } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,7 +14,7 @@ export default function AdminLogin() {
   const [busy, setBusy] = useState(false);
 
   if (isReady && isAuthenticated && user?.is_staff) {
-    return <Navigate to="/admin-dashboard" replace />;
+    return <Navigate to="/admin" replace />;
   }
 
   async function submit(event: FormEvent) {
@@ -22,8 +22,8 @@ export default function AdminLogin() {
     setError(null);
     setBusy(true);
     try {
-      await login(email, password);
-      navigate("/admin-dashboard", { replace: true });
+      await adminLogin(email, password);
+      navigate("/admin", { replace: true });
     } catch {
       setError("Wrong credentials, or the API isn't running.");
     } finally {
@@ -66,6 +66,7 @@ export default function AdminLogin() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter your password"
             />
           </label>
         </div>
@@ -76,7 +77,7 @@ export default function AdminLogin() {
 
         <p className="mt-4 text-center text-sm text-charcoal/70">
           Not an admin?{" "}
-          <Link to="/login" className="font-semibold text-leaf-700 underline">
+          <Link to="/rewear/login" className="font-semibold text-leaf-700 underline">
             User sign in
           </Link>
         </p>

@@ -1,16 +1,32 @@
+import re
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
 
 class UserManager(BaseUserManager):
-    """Email-first user manager (no usernames in ReWear)."""
+    """Email-first user manager; buyers/sellers also get a public username."""
 
     use_in_migrations = True
+
+    @staticmethod
+    def _generate_username(email):
+        base = re.sub(r"[^a-z0-9_]+", "_", email.split("@", 1)[0].lower()).strip("_")
+        if not base:
+            base = "user"
+        username = base[:30]
+        counter = 1
+        while User.objects.filter(username__iexact=username).exists():
+            suffix = f"_{counter}"
+            username = f"{base[: 30 - len(suffix)]}{suffix}"
+            counter += 1
+        return username
 
     def _create_user(self, email, password, **extra_fields):
         if not email:
             raise ValueError("An email address is required.")
         email = self.normalize_email(email)
+        extra_fields.setdefault("username", self._generate_username(email))
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -32,7 +48,7 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractUser):
-    username = None
+    username = models.CharField(max_length=30, unique=True, null=True, blank=True)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True)
     avatar = models.ImageField(upload_to="avatars/%Y/%m/", blank=True, null=True)

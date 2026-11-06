@@ -2,6 +2,7 @@ import { api } from "../lib/api";
 
 export interface User {
   id: number;
+  username: string | null;
   email: string;
   first_name: string;
   last_name: string;
@@ -24,6 +25,7 @@ export interface AuthResponse {
 }
 
 export interface RegisterPayload {
+  username?: string;
   email: string;
   password: string;
   first_name?: string;
@@ -35,9 +37,22 @@ export const authService = {
   register: (payload: RegisterPayload) =>
     api.post<AuthResponse>("/v1/auth/register/", payload).then((r) => r.data),
 
-  login: (email: string, password: string) =>
+  login: (username: string, password: string) =>
     api
-      .post<AuthResponse>("/v1/auth/login/", { email, password })
+      .post<AuthResponse>("/v1/auth/login/", {
+        login_type: "user",
+        username,
+        password,
+      })
+      .then((r) => r.data),
+
+  adminLogin: (email: string, password: string) =>
+    api
+      .post<AuthResponse>("/v1/auth/login/", {
+        login_type: "admin",
+        email,
+        password,
+      })
       .then((r) => r.data),
 
   logout: (refresh: string) =>

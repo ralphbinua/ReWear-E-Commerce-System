@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -25,8 +25,10 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/browse" element={<Browse />} />
         <Route path="/listing/:id" element={<ListingDetail />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/rewear/login" element={<Login />} />
+        <Route path="/login" element={<Navigate to="/rewear/login" replace />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin-login" element={<Navigate to="/admin/login" replace />} />
         <Route path="/register" element={<Register />} />
 
         {/* Route-protected shell for authenticated pages (orders, profile, …) */}
@@ -34,7 +36,9 @@ export default function App() {
           <Route path="/sell" element={<Sell />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:conversationId" element={<Messages />} />
-          <Route path="/admin-dashboard" element={<AdminConsole />} />
+          <Route path="/admin" element={<AdminConsole />} />
+          <Route path="/admin-console" element={<Navigate to="/admin" replace />} />
+          <Route path="/admin-dashboard" element={<Navigate to="/admin" replace />} />
           <Route path="/seller-dashboard" element={<SellerDashboard />} />
           <Route path="/my-listings" element={<MyListings />} />
           <Route path="/orders" element={<Orders />} />

@@ -14,6 +14,7 @@ def test_register_returns_tokens_and_user(api_client):
     response = api_client.post(
         REGISTER_URL,
         {
+            "username": "new_user",
             "email": "new@example.com",
             "password": "Str0ngPass!23",
             "first_name": "New",
@@ -23,6 +24,7 @@ def test_register_returns_tokens_and_user(api_client):
     )
 
     assert response.status_code == status.HTTP_201_CREATED
+    assert response.data["user"]["username"] == "new_user"
     assert response.data["user"]["email"] == "new@example.com"
     assert response.data["access"]
     assert response.data["refresh"]
@@ -53,7 +55,7 @@ def test_register_rejects_weak_password(api_client):
 def test_login_returns_user_payload(api_client, user):
     response = api_client.post(
         LOGIN_URL,
-        {"email": user.email, "password": "Str0ngPass!23"},
+        {"login_type": "user", "username": user.username, "password": "Str0ngPass!23"},
         format="json",
     )
 
@@ -69,7 +71,7 @@ def test_me_requires_authentication(api_client):
 def test_me_accepts_bearer_token(api_client, user):
     login = api_client.post(
         LOGIN_URL,
-        {"email": user.email, "password": "Str0ngPass!23"},
+        {"login_type": "user", "username": user.username, "password": "Str0ngPass!23"},
         format="json",
     )
     access = login.data["access"]
@@ -83,7 +85,7 @@ def test_me_accepts_bearer_token(api_client, user):
 def test_logout_blacklists_refresh_token(api_client, user):
     login = api_client.post(
         LOGIN_URL,
-        {"email": user.email, "password": "Str0ngPass!23"},
+        {"login_type": "user", "username": user.username, "password": "Str0ngPass!23"},
         format="json",
     )
     access, refresh = login.data["access"], login.data["refresh"]
@@ -133,3 +135,42 @@ def test_address_is_scoped_to_user(auth_client, user):
     response = auth_client.get("/api/v1/auth/addresses/")
     assert len(response.data) == 1
     assert response.data[0]["city"] == "Quezon City"
+
+
+def test_admin_login_uses_email_and_requires_staff(api_client, user):
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+
+    response = api_client.post(
+        LOGIN_URL,
+        {"login_type": "admin", "email": user.email, "password": "Str0ngPass!23"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["user"]["is_staff"] is True
+
+
+def test_admin_login_rejects_non_staff(api_client, user):
+    response = api_client.post(
+        LOGIN_URL,
+        {"login_type": "admin", "email": user.email, "password": "Str0ngPass!23"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "detail" in response.data
+
+
+def test_user_login_rejects_staff(api_client, user):
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+
+    response = api_client.post(
+        LOGIN_URL,
+        {"login_type": "user", "username": user.username, "password": "Str0ngPass!23"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "detail" in response.data

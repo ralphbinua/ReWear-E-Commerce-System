@@ -14,7 +14,15 @@ export function ProtectedRoute() {
     );
   }
   if (!isAuthenticated) {
-    return <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />;
+    const loginPath = location.pathname.startsWith("/admin")
+      ? "/admin/login"
+      : "/rewear/login";
+    return (
+      <Navigate
+        to={`${loginPath}?next=${encodeURIComponent(location.pathname)}`}
+        replace
+      />
+    );
   }
   return <Outlet />;
 }
