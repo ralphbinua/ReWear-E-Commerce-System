@@ -47,6 +47,9 @@ export function Layout() {
                 <NavLink to="/seller-dashboard" className={linkClass}>
                   Dashboard
                 </NavLink>
+                <NavLink to="/profile" className={linkClass}>
+                  Profile
+                </NavLink>
                 {user.is_staff && (
                   <NavLink to="/admin" className={linkClass}>
                     Admin

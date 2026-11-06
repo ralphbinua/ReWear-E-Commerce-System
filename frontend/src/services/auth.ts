@@ -59,6 +59,18 @@ export const authService = {
     api.post("/v1/auth/logout/", { refresh }).then(() => undefined),
 
   me: () => api.get<User>("/v1/auth/me/").then((r) => r.data),
+
+  changePassword: (current_password: string, new_password: string) =>
+    api
+      .post("/v1/auth/change-password/", { current_password, new_password })
+      .then((r) => r.data),
+
+  updateProfile: (payload: FormData) =>
+    api
+      .patch<User>("/v1/auth/me/", payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data),
 };
 
 export type PayoutMethod = "gcash" | "maya" | "bank";

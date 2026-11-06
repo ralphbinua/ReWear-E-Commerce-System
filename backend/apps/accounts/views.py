@@ -10,6 +10,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .models import Address, PayoutAccount
 from .serializers import (
     AddressSerializer,
+    ChangePasswordSerializer,
     LoginSerializer,
     PayoutAccountSerializer,
     RegisterSerializer,
@@ -69,6 +70,18 @@ class LogoutView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        request.user.set_password(serializer.validated_data["new_password"])
+        request.user.save(update_fields=["password"])
+        return Response({"detail": "Password changed."}, status=status.HTTP_200_OK)
 
 
 class MeView(generics.RetrieveUpdateAPIView):

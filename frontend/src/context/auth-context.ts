@@ -8,6 +8,8 @@ export interface AuthContextType {
   isReady: boolean;
   login: (username: string, password: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
+  updateProfile: (payload: FormData) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
 }

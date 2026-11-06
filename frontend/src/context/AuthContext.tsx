@@ -55,6 +55,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [queryClient],
   );
 
+  const updateProfile = useCallback(async (payload: FormData) => {
+    const nextUser = await authService.updateProfile(payload);
+    setUser(nextUser);
+  }, []);
+
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      await authService.changePassword(currentPassword, newPassword);
+    },
+    [],
+  );
+
   const logout = useCallback(async () => {
     const refresh = tokenStore.getRefresh();
     tokenStore.clear();
@@ -106,10 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isReady,
       login,
       adminLogin,
+      updateProfile,
+      changePassword,
       register,
       logout,
     }),
-    [login, adminLogin, logout, register, user, isReady],
+    [login, adminLogin, updateProfile, changePassword, logout, register, user, isReady],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

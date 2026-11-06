@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AddressViewSet,
+    ChangePasswordView,
     LoginView,
     LogoutView,
     MeView,
@@ -18,6 +19,7 @@ router.register("payout-accounts", PayoutAccountViewSet, basename="payout-accoun
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
+    path("change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("refresh/", RefreshView.as_view(), name="token-refresh"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),

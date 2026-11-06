@@ -14,6 +14,7 @@ import MyListings from "./pages/MyListings";
 import NotFound from "./pages/NotFound";
 import OrderDetail from "./pages/OrderDetail";
 import Orders from "./pages/Orders";
+import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 import Sell from "./pages/Sell";
 import SellerDashboard from "./pages/SellerDashboard";
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/admin-dashboard" element={<Navigate to="/admin" replace />} />
           <Route path="/seller-dashboard" element={<SellerDashboard />} />
           <Route path="/my-listings" element={<MyListings />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="/listing/:id/edit" element={<ListingEdit />} />

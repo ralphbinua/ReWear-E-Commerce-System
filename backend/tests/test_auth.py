@@ -102,6 +102,29 @@ def test_logout_blacklists_refresh_token(api_client, user):
     assert reused.status_code == status.HTTP_401_UNAUTHORIZED
 
 
+def test_user_can_change_password(auth_client, user):
+    response = auth_client.post(
+        "/api/v1/auth/change-password/",
+        {"current_password": "Str0ngPass!23", "new_password": "N3wStrongPass!"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    user.refresh_from_db()
+    assert user.check_password("N3wStrongPass!")
+
+
+def test_change_password_rejects_wrong_current_password(auth_client, user):
+    response = auth_client.post(
+        "/api/v1/auth/change-password/",
+        {"current_password": "wrong", "new_password": "N3wStrongPass!"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "current_password" in response.data
+
+
 def test_profile_update(auth_client, user):
     response = auth_client.patch(
         ME_URL,
