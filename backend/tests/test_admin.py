@@ -79,6 +79,27 @@ def test_staff_can_suspend_and_activate_user(staff_client, other_user):
     assert other_user.is_active is True
 
 
+def test_staff_can_edit_user_account(staff_client, other_user):
+    response = staff_client.patch(
+        f"{ADMIN_URL}users/{other_user.id}/",
+        {
+            "username": "ben_buyer",
+            "first_name": "Benjamin",
+            "last_name": "Buyer",
+            "phone": "09170000000",
+            "is_staff": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK, response.data
+    other_user.refresh_from_db()
+    assert other_user.username == "ben_buyer"
+    assert other_user.first_name == "Benjamin"
+    assert other_user.phone == "09170000000"
+    assert other_user.is_staff is True
+
+
 def test_summary_returns_system_counts(staff_client, user, listing):
     response = staff_client.get(f"{ADMIN_URL}summary/")
 

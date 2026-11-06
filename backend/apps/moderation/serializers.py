@@ -71,10 +71,12 @@ class SystemUserSerializer(serializers.ModelSerializer):
         model = get_user_model()
         fields = (
             "id",
+            "username",
             "email",
             "first_name",
             "last_name",
             "display_name",
+            "phone",
             "is_active",
             "is_staff",
             "is_superuser",
@@ -87,6 +89,13 @@ class SystemUserSerializer(serializers.ModelSerializer):
             "reports_count",
         )
         read_only_fields = fields
+
+
+class AdminUserUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = ("username", "email", "first_name", "last_name", "phone", "is_active", "is_staff")
+        extra_kwargs = {field: {"required": False} for field in fields}
 
 
 class SystemDisputeSerializer(serializers.ModelSerializer):

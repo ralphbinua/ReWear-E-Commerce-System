@@ -8,6 +8,7 @@ import {
   FileText,
   Gavel,
   Package,
+  Pencil,
   RotateCcw,
   ShieldAlert,
   ShoppingBag,
@@ -24,6 +25,7 @@ import {
   adminService,
   type SystemDispute,
   type SystemReport,
+  type SystemUser,
 } from "../services/admin";
 import { useAuth } from "../context/useAuth";
 
@@ -376,8 +378,18 @@ function ReportCard({ report }: { report: SystemReport }) {
 }
 
 function UsersPanel() {
+  const { user: currentUser } = useAuth();
   const refresh = useAdminRefresh();
   const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState({
+    username: "",
+    email: "",
+    first_name: "",
+    last_name: "",
+    phone: "",
+    is_staff: false,
+  });
   const users = useQuery({
     queryKey: ["system-admin", "users", search],
     queryFn: () => adminService.users({ q: search.trim() || undefined }),
@@ -397,6 +409,32 @@ function UsersPanel() {
       refresh();
     },
   });
+  const update = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: typeof form }) =>
+      adminService.updateUser(id, payload),
+    onSuccess: () => {
+      showToast("Account updated.", "success", "ReWear");
+      setEditingId(null);
+      refresh();
+    },
+  });
+
+  function startEditing(member: SystemUser) {
+    setEditingId(member.id);
+    setForm({
+      username: member.username ?? "",
+      email: member.email,
+      first_name: member.first_name,
+      last_name: member.last_name,
+      phone: member.phone,
+      is_staff: member.is_staff,
+    });
+  }
+
+  function saveEdit(event: FormEvent, member: SystemUser) {
+    event.preventDefault();
+    update.mutate({ id: member.id, payload: form });
+  }
 
   return (
     <div className="grid gap-4">
@@ -415,34 +453,118 @@ function UsersPanel() {
         {users.data?.map((member) => (
           <article
             key={member.id}
-            className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-leaf-300/40 bg-white p-4"
+            className="grid gap-4 rounded-3xl border border-leaf-300/40 bg-white p-4"
           >
-            <div className="min-w-0">
-              <p className="font-semibold">{member.display_name}</p>
-              <p className="text-xs text-charcoal/55">
-                {member.email} · joined {new Date(member.date_joined).toLocaleDateString("en-PH")} ·{" "}
-                {member.listings_count} listings · {member.sales_count} sales
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                  member.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800",
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="font-semibold">{member.display_name}</p>
+                <p className="text-xs text-charcoal/55">
+                  {member.username ? `@${member.username} · ` : ""}
+                  {member.email} · joined {new Date(member.date_joined).toLocaleDateString("en-PH")} ·{" "}
+                  {member.listings_count} listings · {member.sales_count} sales
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                    member.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800",
+                  )}
+                >
+                  {member.is_active ? "Active" : "Suspended"}
+                </span>
+                {member.is_staff && (
+                  <span className="rounded-full bg-leaf-100 px-2 py-0.5 text-[10px] font-semibold text-leaf-800">
+                    Staff
+                  </span>
                 )}
-              >
-                {member.is_active ? "Active" : "Suspended"}
-              </span>
-              {member.is_active ? (
-                <Button variant="ghost" onClick={() => suspend.mutate(member.id)} disabled={suspend.isPending}>
-                  <Ban className="h-4 w-4" /> Suspend
+                <Button variant="ghost" onClick={() => startEditing(member)}>
+                  <Pencil className="h-4 w-4" /> Edit
                 </Button>
-              ) : (
-                <Button variant="ghost" onClick={() => activate.mutate(member.id)} disabled={activate.isPending}>
-                  <UserCheck className="h-4 w-4" /> Restore
-                </Button>
-              )}
+                {member.is_active ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => suspend.mutate(member.id)}
+                    disabled={suspend.isPending || member.id === currentUser?.id || member.is_superuser}
+                    title={
+                      member.id === currentUser?.id
+                        ? "You can't suspend your own account"
+                        : member.is_superuser
+                          ? "Superusers cannot be suspended"
+                          : undefined
+                    }
+                  >
+                    <Ban className="h-4 w-4" /> Suspend
+                  </Button>
+                ) : (
+                  <Button variant="ghost" onClick={() => activate.mutate(member.id)} disabled={activate.isPending}>
+                    <UserCheck className="h-4 w-4" /> Restore
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {editingId === member.id && (
+              <form
+                onSubmit={(event) => saveEdit(event, member)}
+                className="grid gap-3 border-t border-leaf-300/30 pt-4 md:grid-cols-2"
+              >
+                <label className="grid gap-1.5 text-sm font-medium">
+                  Username
+                  <Input
+                    value={form.username}
+                    onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
+                    maxLength={30}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-medium">
+                  Email
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-medium">
+                  First name
+                  <Input
+                    value={form.first_name}
+                    onChange={(event) => setForm((current) => ({ ...current, first_name: event.target.value }))}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-medium">
+                  Last name
+                  <Input
+                    value={form.last_name}
+                    onChange={(event) => setForm((current) => ({ ...current, last_name: event.target.value }))}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-medium">
+                  Phone
+                  <Input
+                    value={form.phone}
+                    onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={form.is_staff}
+                    onChange={(event) => setForm((current) => ({ ...current, is_staff: event.target.checked }))}
+                    disabled={member.id === currentUser?.id}
+                  />
+                  Staff account
+                </label>
+                <div className="flex gap-2 md:col-span-2">
+                  <Button type="submit" disabled={update.isPending}>
+                    {update.isPending ? "Saving…" : "Save account"}
+                  </Button>
+                  <Button variant="ghost" type="button" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
           </article>
         ))}
       </div>

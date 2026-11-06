@@ -17,6 +17,7 @@ from apps.core.services import audit, notify
 from .models import ModerationAction, Report
 from .serializers import (
     AdminListingSerializer,
+    AdminUserUpdateSerializer,
     ResolveDisputeSerializer,
     ResolveReportSerializer,
     SystemDisputeSerializer,
@@ -186,11 +187,56 @@ class ReportViewSet(
 class AdminUserViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
     permission_classes = [IsAdminUser]
     serializer_class = SystemUserSerializer
     pagination_class = None
+
+    def get_serializer_class(self):
+        if self.action in {"update", "partial_update"}:
+            return AdminUserUpdateSerializer
+        return SystemUserSerializer
+
+    def update(self, request, *args, **kwargs):
+        target = self.get_object()
+        serializer = self.get_serializer(target, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        if (
+            target.id == request.user.id
+            and (
+                serializer.validated_data.get("is_active") is False
+                or serializer.validated_data.get("is_staff") is False
+            )
+        ):
+            return Response(
+                {"detail": "You can't deactivate or remove staff access from your own account."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if (
+            target.is_superuser
+            and not request.user.is_superuser
+            and (
+                "is_staff" in serializer.validated_data
+                or "is_active" in serializer.validated_data
+            )
+        ):
+            return Response(
+                {"detail": "Only a superuser can change a superuser account."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer.save()
+        audit(
+            request.user,
+            "user.updated",
+            "user",
+            target.id,
+            {"fields": list(serializer.validated_data)},
+        )
+        return Response(SystemUserSerializer(target).data)
 
     def get_queryset(self):
         queryset = (

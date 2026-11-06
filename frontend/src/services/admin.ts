@@ -42,10 +42,12 @@ export interface SystemReport {
 
 export interface SystemUser {
   id: number;
+  username: string | null;
   email: string;
   first_name: string;
   last_name: string;
   display_name: string;
+  phone: string;
   is_active: boolean;
   is_staff: boolean;
   is_superuser: boolean;
@@ -99,6 +101,19 @@ export const adminService = {
 
   users: (params: { q?: string } = {}) =>
     api.get<SystemUser[]>("/v1/admin/users/", { params }).then((r) => r.data),
+
+  updateUser: (
+    id: number,
+    payload: Partial<{
+      username: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+      phone: string;
+      is_active: boolean;
+      is_staff: boolean;
+    }>,
+  ) => api.patch<SystemUser>(`/v1/admin/users/${id}/`, payload).then((r) => r.data),
 
   suspendUser: (id: number) =>
     api.post<SystemUser>(`/v1/admin/users/${id}/suspend/`, {}).then((r) => r.data),
