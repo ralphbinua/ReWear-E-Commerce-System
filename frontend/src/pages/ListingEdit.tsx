@@ -5,6 +5,8 @@ import { Trash2, Upload } from "lucide-react";
 
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { apiErrorMessage } from "../lib/api-errors";
+import { showToast } from "../lib/toast";
 import { useAuth } from "../context/useAuth";
 import {
   listingsService,
@@ -124,12 +126,41 @@ function EditForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  function showInvalid(message: string) {
+    setError(message);
+    showToast(message, "error", "Invalid action");
+  }
+
   const sizeOptions = [...sizes].sort(
     (a, b) => a.kind.localeCompare(b.kind) || a.order - b.order || a.name.localeCompare(b.name),
   );
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+
+    if (listing.type === "auction" && listing.is_live) {
+      const endDate = endAt ? new Date(endAt) : null;
+
+      if (!endDate || Number.isNaN(endDate.getTime())) {
+        showInvalid("Choose a valid auction end date.");
+        return;
+      }
+      if (endDate.getTime() <= Date.now()) {
+        showInvalid("The auction must end in the future.");
+        return;
+      }
+      if (
+        listing.bid_count > 0 &&
+        listing.end_at &&
+        endDate.getTime() < new Date(listing.end_at).getTime()
+      ) {
+        showInvalid(
+          "This auction already has bids, so the end date can only be extended.",
+        );
+        return;
+      }
+    }
+
     setBusy(true);
     setError(null);
     setSaved(false);
@@ -159,9 +190,7 @@ function EditForm({
       ]);
       setSaved(true);
     } catch (err: unknown) {
-      const data = (err as { response?: { data?: unknown } })?.response?.data;
-      const msg = data ? Object.values(data as Record<string, unknown>).flat()[0] : undefined;
-      setError(Array.isArray(msg) ? String(msg[0]) : "Couldn't save your changes.");
+      setError(apiErrorMessage(err, "Couldn't save your changes."));
     } finally {
       setBusy(false);
     }

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
+import { ToastProvider } from "./components/Toast";
 import { AuthProvider } from "./context/AuthContext";
 
 export function Root() {
@@ -19,7 +20,9 @@ export function Root() {
     <QueryClientProvider client={client}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <ToastProvider>
+            <App />
+          </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

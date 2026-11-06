@@ -1,5 +1,7 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
+import { apiErrorMessage } from "./api-errors";
+import { showToast } from "./toast";
 import { tokenStore } from "./tokens";
 
 export const api = axios.create({
@@ -63,6 +65,14 @@ api.interceptors.response.use(
         original.headers.set("Authorization", `Bearer ${access}`);
         return api(original);
       }
+    }
+
+    if (status !== undefined && [400, 401, 403, 409, 422].includes(status)) {
+      showToast(
+        apiErrorMessage(error, "That action couldn't be completed."),
+        "error",
+        "Invalid action",
+      );
     }
 
     return Promise.reject(error);
