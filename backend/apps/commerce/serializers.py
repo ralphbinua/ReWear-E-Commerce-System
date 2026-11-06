@@ -8,7 +8,7 @@ from rest_framework import serializers
 
 from apps.catalog.models import Listing
 
-from .models import Order, PaymentProof
+from .models import Order, PaymentProof, Review
 
 
 class OrderListingSerializer(serializers.Serializer):
@@ -25,12 +25,32 @@ class OrderListingSerializer(serializers.Serializer):
         return request.build_absolute_uri(image.image.url) if request else image.image.url
 
 
+class ReviewSerializer(serializers.ModelSerializer):
+    reviewer_name = serializers.CharField(source="reviewer.display_name", read_only=True)
+    reviewee_name = serializers.CharField(source="reviewee.display_name", read_only=True)
+
+    class Meta:
+        model = Review
+        fields = (
+            "id",
+            "reviewer",
+            "reviewer_name",
+            "reviewee",
+            "reviewee_name",
+            "rating",
+            "comment",
+            "created_at",
+        )
+        read_only_fields = ("id", "reviewer", "reviewee", "created_at")
+
+
 class OrderSerializer(serializers.ModelSerializer):
     listing = OrderListingSerializer(read_only=True)
     buyer_name = serializers.CharField(source="buyer.display_name", read_only=True)
     seller_name = serializers.CharField(source="seller.display_name", read_only=True)
     latest_proof = serializers.SerializerMethodField()
     payout_accounts = serializers.SerializerMethodField()
+    reviews = ReviewSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
@@ -59,6 +79,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "cancel_reason",
             "latest_proof",
             "payout_accounts",
+            "reviews",
         )
 
     def get_payout_accounts(self, obj):

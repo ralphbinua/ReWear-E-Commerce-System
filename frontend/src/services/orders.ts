@@ -33,6 +33,17 @@ export interface PayoutDestination {
   account_number: string;
 }
 
+export interface OrderReview {
+  id: number;
+  reviewer: number;
+  reviewer_name: string;
+  reviewee: number;
+  reviewee_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
 export interface Order {
   id: string;
   order_number: string;
@@ -58,6 +69,7 @@ export interface Order {
   cancel_reason: string;
   latest_proof: OrderProof | null;
   payout_accounts: PayoutDestination[];
+  reviews: OrderReview[];
 }
 
 export interface PagedOrders {
@@ -111,4 +123,7 @@ export const ordersService = {
 
   cancel: (id: string, reason?: string) =>
     api.post<Order>(`/v1/orders/${id}/cancel/`, { reason }).then((r) => r.data),
+
+  review: (id: string, payload: { rating: number; comment?: string }) =>
+    api.post<OrderReview>(`/v1/orders/${id}/review/`, payload).then((r) => r.data),
 };

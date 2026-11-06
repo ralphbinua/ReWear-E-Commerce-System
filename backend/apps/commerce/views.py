@@ -1,5 +1,7 @@
+from decimal import Decimal
+
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Avg, Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -11,17 +13,27 @@ from rest_framework.response import Response
 from apps.catalog.models import Listing
 from apps.core.services import audit, notify
 
-from .models import Order, PaymentProof, PlatformFee
+from .models import Order, PaymentProof, PlatformFee, Review
 from .serializers import (
     CheckoutSerializer,
     OrderSerializer,
     PaymentProofSerializer,
+    ReviewSerializer,
 )
 
 
 def _mark_sale(listing):
     listing.status = Listing.Status.SOLD
     listing.save(update_fields=["status", "updated_at"])
+
+
+def _recalculate_rating(user):
+    """Recompute a user's average rating from their received reviews."""
+    stats = user.reviews_received.aggregate(avg=Avg("rating"), count=Count("id"))
+    average = Decimal(str(stats["avg"] or 0)).quantize(Decimal("0.01"))
+    user.rating_avg = average
+    user.rating_count = stats["count"] or 0
+    user.save(update_fields=["rating_avg", "rating_count"])
 
 
 class OrderViewSet(
@@ -37,7 +49,11 @@ class OrderViewSet(
         user = self.request.user
         qs = (
             Order.objects.select_related("listing", "buyer", "seller")
-            .prefetch_related("listing__images", "seller__payout_accounts")
+            .prefetch_related(
+                "listing__images",
+                "seller__payout_accounts",
+                "reviews__reviewer",
+            )
             .filter(Q(buyer=user) | Q(seller=user))
         )
         role = self.request.query_params.get("role")
@@ -224,6 +240,48 @@ class OrderViewSet(
         )
         audit(request.user, "order.completed", "order", order.id, {})
         return Response(OrderSerializer(order, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="review")
+    def review(self, request, pk=None):
+        order = get_object_or_404(self.get_queryset(), pk=pk)
+        if request.user.id not in {order.buyer_id, order.seller_id}:
+            return Response(
+                {"detail": "Only the buyer or seller can review this order."},
+                status=403,
+            )
+        if order.status not in {Order.Status.COMPLETED, Order.Status.DELIVERED}:
+            return Response(
+                {"detail": "You can review after the order is completed."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if Review.objects.filter(order=order, reviewer=request.user).exists():
+            return Response(
+                {"detail": "You already reviewed this order."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        serializer = ReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        reviewee = order.seller if request.user.id == order.buyer_id else order.buyer
+        review = serializer.save(order=order, reviewer=request.user, reviewee=reviewee)
+        _recalculate_rating(reviewee)
+
+        notify(
+            reviewee,
+            "order_update",
+            f"You received a {review.rating}-star review",
+            f"{request.user.display_name} reviewed {order.order_number}.",
+            f"/orders/{order.id}",
+        )
+        audit(
+            request.user,
+            "order.reviewed",
+            "order",
+            order.id,
+            {"rating": review.rating},
+        )
+        return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request, pk=None):

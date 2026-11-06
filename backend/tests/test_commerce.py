@@ -201,3 +201,109 @@ def test_seller_does_not_see_payout_accounts_through_order(
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data["payout_accounts"] == []
+
+
+def complete_order(other_client, listing):
+    order = buy(other_client, listing).data
+    Order.objects.filter(pk=order["id"]).update(status=Order.Status.COMPLETED)
+    return order
+
+
+def test_buyer_can_rate_seller_after_completion(
+    auth_client, other_client, user, other_user, listing
+):
+    order = complete_order(other_client, listing)
+
+    response = other_client.post(
+        f"{ORDERS_URL}{order['id']}/review/",
+        {"rating": 5, "comment": "Fast shipping, exactly as described."},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED, response.data
+    assert response.data["rating"] == 5
+    assert response.data["reviewer"] == other_user.id
+    assert response.data["reviewee"] == user.id
+
+    user.refresh_from_db()
+    assert user.rating_count == 1
+    assert str(user.rating_avg) == "5.00"
+
+    detail = other_client.get(f"{ORDERS_URL}{order['id']}/").data
+    assert len(detail["reviews"]) == 1
+    assert detail["reviews"][0]["comment"] == "Fast shipping, exactly as described."
+
+
+def test_seller_can_rate_buyer_after_completion(auth_client, other_client, other_user, listing):
+    order = complete_order(other_client, listing)
+
+    response = auth_client.post(
+        f"{ORDERS_URL}{order['id']}/review/",
+        {"rating": 4, "comment": "Smooth transaction."},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED, response.data
+    assert response.data["reviewee"] == other_user.id
+
+    other_user.refresh_from_db()
+    assert other_user.rating_count == 1
+    assert str(other_user.rating_avg) == "4.00"
+
+
+def test_cannot_rate_before_completion(other_client, listing):
+    order = buy(other_client, listing).data
+
+    response = other_client.post(
+        f"{ORDERS_URL}{order['id']}/review/", {"rating": 5}, format="json"
+    )
+
+    assert response.status_code == status.HTTP_409_CONFLICT
+
+
+def test_cannot_rate_same_order_twice(other_client, listing):
+    order = complete_order(other_client, listing)
+    payload = {"rating": 5}
+
+    first = other_client.post(
+        f"{ORDERS_URL}{order['id']}/review/", payload, format="json"
+    )
+    second = other_client.post(
+        f"{ORDERS_URL}{order['id']}/review/", payload, format="json"
+    )
+
+    assert first.status_code == status.HTTP_201_CREATED
+    assert second.status_code == status.HTTP_409_CONFLICT
+
+
+def test_stranger_cannot_rate_an_order(other_client, listing):
+    from rest_framework.test import APIClient
+
+    from apps.accounts.models import User
+
+    order = complete_order(other_client, listing)
+    stranger = APIClient()
+    stranger.force_authenticate(
+        user=User.objects.create_user(email="nosy@example.com", password="Pass123!")
+    )
+
+    response = stranger.post(
+        f"{ORDERS_URL}{order['id']}/review/", {"rating": 1}, format="json"
+    )
+
+    # Strangers cannot even see the order, so the endpoint 404s for them.
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_rating_must_be_between_one_and_five(other_client, listing):
+    order = complete_order(other_client, listing)
+
+    too_low = other_client.post(
+        f"{ORDERS_URL}{order['id']}/review/", {"rating": 0}, format="json"
+    )
+    too_high = other_client.post(
+        f"{ORDERS_URL}{order['id']}/review/", {"rating": 6}, format="json"
+    )
+
+    assert too_low.status_code == status.HTTP_400_BAD_REQUEST
+    assert too_high.status_code == status.HTTP_400_BAD_REQUEST

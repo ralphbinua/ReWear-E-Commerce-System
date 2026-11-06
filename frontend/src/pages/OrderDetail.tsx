@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Circle,
   ShieldCheck,
+  Star,
   XCircle,
 } from "lucide-react";
 
@@ -30,6 +31,23 @@ const STEP_LABEL: Record<OrderStatus, string> = {
 };
 
 const COURIERS = ["LBC", "J&T Express", "Ninja Van", "GrabExpress", "Lalamove", "Meetup (no courier)"];
+
+function Stars({ value }: { value: number }) {
+  return (
+    <div className="flex gap-0.5" aria-label={`${value} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={cn(
+            "h-4 w-4",
+            star <= value ? "fill-amber-400 text-amber-500" : "text-charcoal/25",
+          )}
+          aria-hidden
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -100,6 +118,20 @@ export default function OrderDetail() {
     onSuccess: invalidate,
   });
 
+  const submitReview = useMutation({
+    mutationFn: () =>
+      ordersService.review(id as string, {
+        rating,
+        comment: reviewComment.trim() || undefined,
+      }),
+    onSuccess: () => {
+      setRating(0);
+      setReviewComment("");
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+
   const [proofMethod, setProofMethod] = useState("gcash");
   const [proofReference, setProofReference] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -108,6 +140,8 @@ export default function OrderDetail() {
   const [courier, setCourier] = useState(COURIERS[0]!);
   const [trackingNumber, setTrackingNumber] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  const [rating, setRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
 
   function submitProof(event: FormEvent) {
     event.preventDefault();
@@ -123,6 +157,11 @@ export default function OrderDetail() {
   const myRole: "buyer" | "seller" | "stranger" =
     user?.id === order.buyer ? "buyer" : user?.id === order.seller ? "seller" : "stranger";
   const currentStep = STEPS.indexOf(order.status as OrderStatus);
+  const myReview = order.reviews.find((review) => review.reviewer === user?.id);
+  const theirReview = order.reviews.find((review) => review.reviewer !== user?.id);
+  const canRate =
+    (myRole === "buyer" || myRole === "seller") &&
+    (order.status === "completed" || order.status === "delivered");
 
   return (
     <div className="shell py-10">
@@ -376,15 +415,97 @@ export default function OrderDetail() {
         </form>
       )}
 
-      {order.status === "completed" && (
-        <div className="mt-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-900">
-          <CheckCircle2 className="h-5 w-5" />
-          <div>
-            <p className="font-semibold">Sale complete!</p>
-            <p className="text-sm">
-              Rating window opens — review {myRole === "buyer" ? "the seller" : "the buyer"} soon.
+      {(order.status === "completed" || order.status === "delivered") && (
+        <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-900">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5" />
+            <p className="font-semibold">
+              {order.status === "completed" ? "Sale complete!" : "Delivered!"}
             </p>
           </div>
+
+          {canRate && (
+            <div className="mt-4 grid gap-3">
+              {myReview ? (
+                <div className="rounded-xl bg-white/70 p-3">
+                  <p className="text-sm font-semibold">Your rating</p>
+                  <Stars value={myReview.rating} />
+                  {myReview.comment && (
+                    <p className="mt-1 text-sm text-charcoal/80">{myReview.comment}</p>
+                  )}
+                </div>
+              ) : (
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (rating > 0) submitReview.mutate();
+                  }}
+                  className="rounded-xl bg-white/70 p-3"
+                >
+                  <p className="text-sm font-semibold">
+                    {myRole === "buyer" ? "Rate the seller" : "Rate the buyer"}
+                  </p>
+                  <div className="mt-1.5 flex gap-1" role="radiogroup" aria-label="Rating">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        role="radio"
+                        aria-checked={rating === star}
+                        aria-label={`${star} star${star === 1 ? "" : "s"}`}
+                        onClick={() => setRating(star)}
+                        className="rounded p-0.5 transition hover:scale-110"
+                      >
+                        <Star
+                          className={cn(
+                            "h-7 w-7",
+                            star <= rating
+                              ? "fill-amber-400 text-amber-500"
+                              : "text-charcoal/25",
+                          )}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <Input
+                    className="mt-2"
+                    value={reviewComment}
+                    onChange={(event) => setReviewComment(event.target.value)}
+                    placeholder="Optional comment — how did it go?"
+                    maxLength={1000}
+                  />
+                  <Button
+                    type="submit"
+                    className="mt-2"
+                    disabled={rating === 0 || submitReview.isPending}
+                  >
+                    {submitReview.isPending ? "Submitting…" : "Submit rating"}
+                  </Button>
+                  {submitReview.isError && (
+                    <p role="alert" className="mt-1 text-sm text-red-700">
+                      Couldn't submit your rating. Try again.
+                    </p>
+                  )}
+                </form>
+              )}
+
+              {theirReview && (
+                <div className="rounded-xl bg-white/70 p-3">
+                  <p className="text-sm font-semibold">
+                    {myRole === "buyer" ? "Seller rated you" : "Buyer rated you"}
+                  </p>
+                  <Stars value={theirReview.rating} />
+                  {theirReview.comment && (
+                    <p className="mt-1 text-sm text-charcoal/80">{theirReview.comment}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {myRole === "stranger" && (
+            <p className="mt-2 text-sm">You don't have a rating role on this order.</p>
+          )}
         </div>
       )}
     </div>
