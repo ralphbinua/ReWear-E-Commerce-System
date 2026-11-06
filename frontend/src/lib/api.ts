@@ -68,8 +68,9 @@ api.interceptors.response.use(
     }
 
     const method = (original?.method ?? "get").toLowerCase();
+    const isLogoutRequest = original?.url?.includes("/v1/auth/logout/") ?? false;
 
-    if (method !== "get") {
+    if (method !== "get" && !isLogoutRequest) {
       const actionFailed = status === undefined || status >= 500;
       showToast(
         apiErrorMessage(
