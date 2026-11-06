@@ -100,6 +100,26 @@ def test_staff_can_edit_user_account(staff_client, other_user):
     assert other_user.is_staff is True
 
 
+def test_staff_can_reset_user_password(api_client, staff_client, other_user):
+    response = staff_client.post(
+        f"{ADMIN_URL}users/{other_user.id}/reset-password/", {}, format="json"
+    )
+
+    assert response.status_code == status.HTTP_200_OK, response.data
+    temporary_password = response.data["temporary_password"]
+    assert temporary_password
+
+    other_user.refresh_from_db()
+    assert other_user.check_password(temporary_password)
+
+    login = api_client.post(
+        "/api/v1/auth/login/",
+        {"login_type": "user", "username": other_user.username, "password": temporary_password},
+        format="json",
+    )
+    assert login.status_code == status.HTTP_200_OK
+
+
 def test_summary_returns_system_counts(staff_client, user, listing):
     response = staff_client.get(f"{ADMIN_URL}summary/")
 

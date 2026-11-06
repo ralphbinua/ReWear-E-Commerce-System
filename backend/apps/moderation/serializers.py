@@ -98,6 +98,16 @@ class AdminUserUpdateSerializer(serializers.ModelSerializer):
         extra_kwargs = {field: {"required": False} for field in fields}
 
 
+class AdminPasswordResetSerializer(serializers.Serializer):
+    password = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        min_length=12,
+        max_length=128,
+        trim_whitespace=False,
+    )
+
+
 class SystemDisputeSerializer(serializers.ModelSerializer):
     order_number = serializers.CharField(source="order.order_number", read_only=True)
     opened_by_name = serializers.CharField(source="opened_by.display_name", read_only=True)

@@ -1,3 +1,4 @@
+import secrets
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -17,6 +18,7 @@ from apps.core.services import audit, notify
 from .models import ModerationAction, Report
 from .serializers import (
     AdminListingSerializer,
+    AdminPasswordResetSerializer,
     AdminUserUpdateSerializer,
     ResolveDisputeSerializer,
     ResolveReportSerializer,
@@ -291,6 +293,44 @@ class AdminUserViewSet(
         )
         audit(request.user, "user.activated", "user", target.id, {})
         return Response(self.get_serializer(target).data)
+
+    @action(detail=True, methods=["post"], url_path="reset-password")
+    def reset_password(self, request, pk=None):
+        target = self.get_object()
+        if target.is_superuser and not request.user.is_superuser:
+            return Response(
+                {"detail": "Only a superuser can reset a superuser password."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = AdminPasswordResetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        password = serializer.validated_data.get("password") or secrets.token_urlsafe(18)
+
+        target.set_password(password)
+        target.save(update_fields=["password"])
+
+        notify(
+            target,
+            "system",
+            "Password reset",
+            "An admin reset your ReWear password. Sign in with the temporary "
+            "password you were given.",
+            "/rewear/login",
+        )
+        audit(
+            request.user,
+            "user.password_reset",
+            "user",
+            target.id,
+            {"password_provided": bool(serializer.validated_data.get("password"))},
+        )
+        return Response(
+            {
+                "user": SystemUserSerializer(target).data,
+                "temporary_password": password,
+            }
+        )
 
 
 class AdminDisputeViewSet(

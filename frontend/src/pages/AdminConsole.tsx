@@ -7,6 +7,7 @@ import {
   Eye,
   FileText,
   Gavel,
+  KeyRound,
   Package,
   Pencil,
   RotateCcw,
@@ -390,6 +391,10 @@ function UsersPanel() {
     phone: "",
     is_staff: false,
   });
+  const [resetResult, setResetResult] = useState<{
+    userId: number;
+    password: string;
+  } | null>(null);
   const users = useQuery({
     queryKey: ["system-admin", "users", search],
     queryFn: () => adminService.users({ q: search.trim() || undefined }),
@@ -415,6 +420,14 @@ function UsersPanel() {
     onSuccess: () => {
       showToast("Account updated.", "success", "ReWear");
       setEditingId(null);
+      refresh();
+    },
+  });
+  const resetPassword = useMutation({
+    mutationFn: adminService.resetPassword,
+    onSuccess: (result) => {
+      setResetResult({ userId: result.user.id, password: result.temporary_password });
+      showToast("Temporary password created.", "success", "ReWear");
       refresh();
     },
   });
@@ -481,6 +494,13 @@ function UsersPanel() {
                 <Button variant="ghost" onClick={() => startEditing(member)}>
                   <Pencil className="h-4 w-4" /> Edit
                 </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => resetPassword.mutate(member.id)}
+                  disabled={resetPassword.isPending}
+                >
+                  <KeyRound className="h-4 w-4" /> Reset password
+                </Button>
                 {member.is_active ? (
                   <Button
                     variant="ghost"
@@ -503,6 +523,16 @@ function UsersPanel() {
                 )}
               </div>
             </div>
+
+            {resetResult?.userId === member.id && (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-semibold">Temporary password</p>
+                <p className="mt-1 font-mono text-base">{resetResult.password}</p>
+                <p className="mt-1 text-xs text-amber-900/70">
+                  Give this to the user right away. It won't be shown again.
+                </p>
+              </div>
+            )}
 
             {editingId === member.id && (
               <form

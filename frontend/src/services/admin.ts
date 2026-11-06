@@ -121,6 +121,14 @@ export const adminService = {
   activateUser: (id: number) =>
     api.post<SystemUser>(`/v1/admin/users/${id}/activate/`, {}).then((r) => r.data),
 
+  resetPassword: (id: number) =>
+    api
+      .post<{ user: SystemUser; temporary_password: string }>(
+        `/v1/admin/users/${id}/reset-password/`,
+        {},
+      )
+      .then((r) => r.data),
+
   disputes: (params: { status?: string } = {}) =>
     api.get<SystemDispute[]>("/v1/admin/disputes/", { params }).then((r) => r.data),
 
