@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import AdminConsole from "./pages/AdminConsole";
 import Browse from "./pages/Browse";
 import Home from "./pages/Home";
 import ListingDetail from "./pages/ListingDetail";
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/sell" element={<Sell />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:conversationId" element={<Messages />} />
+          <Route path="/admin-console" element={<AdminConsole />} />
           <Route path="/seller-dashboard" element={<SellerDashboard />} />
           <Route path="/my-listings" element={<MyListings />} />
           <Route path="/orders" element={<Orders />} />

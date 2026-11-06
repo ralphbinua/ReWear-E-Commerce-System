@@ -11,6 +11,7 @@ export interface User {
   bio: string;
   is_email_verified: boolean;
   is_id_verified: boolean;
+  is_staff: boolean;
   rating_avg: string;
   rating_count: number;
   date_joined: string;

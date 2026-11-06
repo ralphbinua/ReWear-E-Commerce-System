@@ -47,6 +47,11 @@ export function Layout() {
                 <NavLink to="/seller-dashboard" className={linkClass}>
                   Dashboard
                 </NavLink>
+                {user.is_staff && (
+                  <NavLink to="/admin-console" className={linkClass}>
+                    Admin
+                  </NavLink>
+                )}
                 <NotificationBell />
                 <span className="hidden text-sm text-charcoal/60 xs:inline">
                   Hi, {user.display_name}

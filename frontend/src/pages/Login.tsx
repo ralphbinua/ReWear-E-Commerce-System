@@ -74,15 +74,10 @@ export default function Login() {
           </Link>
         </p>
         <p className="mt-3 text-center text-sm text-charcoal/70">
-          Are you an admin?{" "}
-          <a
-            href="/admin/"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-leaf-700 underline"
-          >
-            Admin login
-          </a>
+          Are you a system admin?{" "}
+          <Link to="/admin-console" className="font-semibold text-leaf-700 underline">
+            Open system admin
+          </Link>
         </p>
       </form>
     </div>
