@@ -201,6 +201,7 @@ REST_FRAMEWORK = {
         "anon": "120/min",
         "user": "2000/day",
         "auth": "10/min",
+        "bids": "30/min",
     },
 }
 

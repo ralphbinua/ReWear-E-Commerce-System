@@ -34,6 +34,9 @@ export function Layout() {
                 <NavLink to="/sell" className={linkClass}>
                   Sell
                 </NavLink>
+                <NavLink to="/orders" className={linkClass}>
+                  Orders
+                </NavLink>
                 <span className="hidden text-sm text-charcoal/60 xs:inline">
                   Hi, {user.display_name}
                 </span>

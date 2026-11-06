@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -51,7 +51,10 @@ class ListingViewSet(viewsets.ModelViewSet):
         queryset = (
             Listing.objects.select_related("seller", "category", "brand", "size")
             .prefetch_related("images")
-            .annotate(bid_count=Count("bids", distinct=True))
+            .annotate(
+                bid_count=Count("bids", distinct=True),
+                highest_bid=Max("bids__amount"),
+            )
         )
         user = self.request.user
 

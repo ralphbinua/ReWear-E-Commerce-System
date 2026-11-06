@@ -30,6 +30,7 @@ class OrderSerializer(serializers.ModelSerializer):
     buyer_name = serializers.CharField(source="buyer.display_name", read_only=True)
     seller_name = serializers.CharField(source="seller.display_name", read_only=True)
     latest_proof = serializers.SerializerMethodField()
+    payout_accounts = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -57,7 +58,23 @@ class OrderSerializer(serializers.ModelSerializer):
             "completed_at",
             "cancel_reason",
             "latest_proof",
+            "payout_accounts",
         )
+
+    def get_payout_accounts(self, obj):
+        """Only the buyer receives the seller's payment destinations."""
+        request = self.context.get("request")
+        if request is None or request.user.id != obj.buyer_id:
+            return []
+        return [
+            {
+                "method": account.method,
+                "method_label": account.get_method_display(),
+                "account_name": account.account_name,
+                "account_number": account.account_number,
+            }
+            for account in obj.seller.payout_accounts.all()
+        ]
 
     def get_latest_proof(self, obj):
         proof = obj.payment_proofs.order_by("-created_at").first()

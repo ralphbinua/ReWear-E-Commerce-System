@@ -37,7 +37,7 @@ class OrderViewSet(
         user = self.request.user
         qs = (
             Order.objects.select_related("listing", "buyer", "seller")
-            .prefetch_related("listing__images")
+            .prefetch_related("listing__images", "seller__payout_accounts")
             .filter(Q(buyer=user) | Q(seller=user))
         )
         role = self.request.query_params.get("role")

@@ -44,3 +44,32 @@ export const authService = {
 
   me: () => api.get<User>("/v1/auth/me/").then((r) => r.data),
 };
+
+export type PayoutMethod = "gcash" | "maya" | "bank";
+
+export interface PayoutAccount {
+  id: number;
+  method: PayoutMethod;
+  method_label: string;
+  account_name: string;
+  account_number: string;
+  is_verified: boolean;
+  created_at: string;
+}
+
+export interface PayoutAccountPayload {
+  method: PayoutMethod;
+  account_name: string;
+  account_number: string;
+}
+
+export const payoutService = {
+  list: () =>
+    api.get<PayoutAccount[]>("/v1/auth/payout-accounts/").then((r) => r.data),
+
+  create: (payload: PayoutAccountPayload) =>
+    api.post<PayoutAccount>("/v1/auth/payout-accounts/", payload).then((r) => r.data),
+
+  remove: (id: number) =>
+    api.delete(`/v1/auth/payout-accounts/${id}/`).then(() => undefined),
+};

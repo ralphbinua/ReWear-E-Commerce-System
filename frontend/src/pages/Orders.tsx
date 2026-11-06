@@ -1,9 +1,25 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Package, Truck, CheckCircle2, XCircle, Clock, ShoppingBag } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  CreditCard,
+  Package,
+  Plus,
+  ShoppingBag,
+  Trash2,
+  Truck,
+  CheckCircle2,
+  XCircle,
+  Clock,
+} from "lucide-react";
 
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { cn } from "../lib/utils";
+import {
+  payoutService,
+  type PayoutMethod,
+} from "../services/auth";
 import { ordersService, type OrderStatus } from "../services/orders";
 
 const STATUS_META: Record<OrderStatus, { label: string; tone: string; Icon: typeof Clock }> = {
@@ -17,6 +33,162 @@ const STATUS_META: Record<OrderStatus, { label: string; tone: string; Icon: type
   refunded: { label: "Refunded", tone: "bg-red-100 text-red-800", Icon: XCircle },
   disputed: { label: "Disputed", tone: "bg-red-100 text-red-800", Icon: XCircle },
 };
+
+const PAYOUT_METHODS: { value: PayoutMethod; label: string }[] = [
+  { value: "gcash", label: "GCash" },
+  { value: "maya", label: "Maya" },
+  { value: "bank", label: "Bank transfer" },
+];
+
+function PayoutDetails() {
+  const queryClient = useQueryClient();
+  const [method, setMethod] = useState<PayoutMethod>("gcash");
+  const [accountName, setAccountName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+
+  const { data: accounts, isPending } = useQuery({
+    queryKey: ["payout-accounts"],
+    queryFn: payoutService.list,
+  });
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ["payout-accounts"] });
+
+  const addAccount = useMutation({
+    mutationFn: () =>
+      payoutService.create({
+        method,
+        account_name: accountName.trim(),
+        account_number: accountNumber.trim(),
+      }),
+    onSuccess: () => {
+      setAccountName("");
+      setAccountNumber("");
+      invalidate();
+    },
+  });
+
+  const removeAccount = useMutation({
+    mutationFn: (id: number) => payoutService.remove(id),
+    onSuccess: invalidate,
+  });
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!accountName.trim() || !accountNumber.trim()) return;
+    addAccount.mutate();
+  }
+
+  return (
+    <section className="mt-6 rounded-2xl border border-leaf-300/40 bg-white p-5">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-leaf-100">
+          <CreditCard className="h-4 w-4 text-leaf-700" />
+        </span>
+        <div>
+          <h2 className="font-display text-lg font-semibold text-leaf-700">
+            Where buyers send payment
+          </h2>
+          <p className="text-sm text-charcoal/70">
+            Add the GCash, Maya, or bank account you want buyers to pay into. Buyers
+            only see these details on their order page.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {isPending && <div className="h-14 animate-pulse rounded-xl bg-leaf-100" />}
+
+        {accounts?.map((account) => (
+          <div
+            key={account.id}
+            className="flex items-center justify-between gap-3 rounded-xl border border-leaf-300/30 bg-cream/50 px-4 py-3"
+          >
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                {account.method_label}
+                {account.is_verified && (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-800">
+                    Verified
+                  </span>
+                )}
+              </p>
+              <p className="truncate text-xs text-charcoal/70">
+                {account.account_name} · {account.account_number}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => removeAccount.mutate(account.id)}
+              disabled={removeAccount.isPending}
+              className="rounded-full p-2 text-charcoal/50 transition hover:bg-red-50 hover:text-red-700"
+              aria-label={`Remove ${account.method_label} account`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+
+        {accounts && accounts.length === 0 && (
+          <p className="rounded-xl border border-dashed border-leaf-300/60 px-4 py-4 text-sm text-charcoal/60">
+            No payout account yet. Add one so buyers know where to send money.
+          </p>
+        )}
+      </div>
+
+      <form onSubmit={submit} className="mt-4 grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5 text-sm font-medium">
+            Method
+            <select
+              className="rounded-xl border border-leaf-300/50 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-leaf-500"
+              value={method}
+              onChange={(e) => setMethod(e.target.value as PayoutMethod)}
+            >
+              {PAYOUT_METHODS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-sm font-medium">
+            Account name
+            <Input
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              placeholder="e.g. Sara Dela Cruz"
+              required
+            />
+          </label>
+        </div>
+        <label className="grid gap-1.5 text-sm font-medium">
+          Account number
+          <Input
+            value={accountNumber}
+            onChange={(e) => setAccountNumber(e.target.value)}
+            placeholder="e.g. 0917 123 4567"
+            required
+          />
+        </label>
+        <div>
+          <Button
+            type="submit"
+            disabled={addAccount.isPending || !accountName.trim() || !accountNumber.trim()}
+          >
+            <Plus className="h-4 w-4" />
+            {addAccount.isPending ? "Adding…" : "Add payout account"}
+          </Button>
+        </div>
+        {addAccount.isError && (
+          <p role="alert" className="text-sm text-red-700">
+            Couldn't save that account. Check the details and try again.
+          </p>
+        )}
+      </form>
+    </section>
+  );
+}
 
 export default function Orders() {
   const [role, setRole] = useState<"buyer" | "seller">("buyer");
@@ -44,6 +216,8 @@ export default function Orders() {
           </button>
         ))}
       </div>
+
+      {role === "seller" && <PayoutDetails />}
 
       <div className="mt-6 grid gap-3">
         {isPending && Array.from({ length: 3 }).map((_, i) => (

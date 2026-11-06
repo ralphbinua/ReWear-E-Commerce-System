@@ -160,3 +160,44 @@ def test_audit_log_written_on_verification(auth_client, other_client, listing):
     assert AuditLog.objects.filter(
         action="order.payment_verified", target_id=str(order["id"])
     ).exists()
+
+
+def test_buyer_receives_seller_payout_accounts(other_client, user, listing):
+    from apps.accounts.models import PayoutAccount
+
+    PayoutAccount.objects.create(
+        user=user,
+        method="gcash",
+        account_name="Sara Seller",
+        account_number="09171234567",
+    )
+
+    order = buy(other_client, listing).data
+
+    assert order["payout_accounts"] == [
+        {
+            "method": "gcash",
+            "method_label": "GCash",
+            "account_name": "Sara Seller",
+            "account_number": "09171234567",
+        }
+    ]
+
+
+def test_seller_does_not_see_payout_accounts_through_order(
+    auth_client, other_client, user, listing
+):
+    from apps.accounts.models import PayoutAccount
+
+    PayoutAccount.objects.create(
+        user=user,
+        method="gcash",
+        account_name="Sara Seller",
+        account_number="09171234567",
+    )
+    order = buy(other_client, listing).data
+
+    response = auth_client.get(f"{ORDERS_URL}{order['id']}/")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["payout_accounts"] == []

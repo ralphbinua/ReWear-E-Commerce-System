@@ -33,6 +33,9 @@ export interface ListingDetail extends Listing {
   location: string;
   is_negotiable: boolean;
   starting_bid: string | null;
+  current_bid: string | null;
+  minimum_bid: string | null;
+  is_live: boolean;
   min_increment: string;
   start_at: string | null;
   extended_count: number;
@@ -45,6 +48,30 @@ export interface ListingDetail extends Listing {
     position: number;
     is_primary: boolean;
   }>;
+}
+
+export interface ListingBid {
+  id: number;
+  amount: string;
+  bidder_name: string;
+  is_mine: boolean;
+  created_at: string;
+}
+
+export interface AuctionState {
+  current_bid: string | null;
+  minimum_bid: string;
+  min_increment: string;
+  bid_count: number;
+  is_live: boolean;
+  end_at: string;
+  extended_count: number;
+  bids: ListingBid[];
+}
+
+export interface PlaceBidResult extends AuctionState {
+  bid: ListingBid;
+  extended: boolean;
 }
 
 export interface ListingImage {
@@ -100,6 +127,14 @@ export const listingsService = {
 
   get: (id: string) =>
     api.get<ListingDetail>(`/v1/listings/${id}/`).then((r) => r.data),
+
+  getBids: (id: string) =>
+    api.get<AuctionState>(`/v1/listings/${id}/bids/`).then((r) => r.data),
+
+  placeBid: (id: string, amount: string) =>
+    api
+      .post<PlaceBidResult>(`/v1/listings/${id}/bids/`, { amount })
+      .then((r) => r.data),
 
   create: (payload: CreateListingPayload) =>
     api.post<ListingDetail>("/v1/listings/", payload).then((r) => r.data),

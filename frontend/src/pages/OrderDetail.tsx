@@ -181,11 +181,40 @@ export default function OrderDetail() {
           <ol className="mt-2 list-decimal pl-5 text-sm text-amber-900/90">
             <li>
               Send <strong>₱{Number(order.total).toLocaleString("en-PH")}</strong> via
-              GCash/Maya/bank transfer to the seller's account (they'll see your order).
+              GCash/Maya/bank transfer to the seller's account below.
             </li>
             <li>Use <strong>{order.order_number}</strong> as your payment note.</li>
             <li>Upload the screenshot below so the seller can verify it.</li>
           </ol>
+
+          {order.payout_accounts.length > 0 ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-white/70 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-900/70">
+                Send to
+              </p>
+              <ul className="mt-2 grid gap-2">
+                {order.payout_accounts.map((account) => (
+                  <li
+                    key={`${account.method}-${account.account_number}`}
+                    className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-lg bg-amber-50/80 px-3 py-2"
+                  >
+                    <span className="text-sm font-semibold text-amber-900">
+                      {account.method_label}
+                    </span>
+                    <span className="text-sm text-amber-900/90">
+                      {account.account_name} ·{" "}
+                      <strong className="font-mono">{account.account_number}</strong>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="mt-4 rounded-xl border border-dashed border-amber-300 bg-white/60 p-3 text-sm text-amber-900/90">
+              The seller hasn't added payout details yet. Wait for them to add their
+              GCash/Maya/bank account before sending money.
+            </p>
+          )}
 
           <form onSubmit={submitProof} className="mt-4 grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">

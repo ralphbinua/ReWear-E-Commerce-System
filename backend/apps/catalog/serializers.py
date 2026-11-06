@@ -74,6 +74,9 @@ class ListingListSerializer(serializers.ModelSerializer):
 class ListingDetailSerializer(ListingListSerializer):
     images = ListingImageSerializer(many=True, read_only=True)
     size_label = serializers.CharField(source="size.name", read_only=True, default=None)
+    current_bid = serializers.SerializerMethodField()
+    minimum_bid = serializers.SerializerMethodField()
+    is_live = serializers.BooleanField(source="is_auction_live", read_only=True)
 
     class Meta(ListingListSerializer.Meta):
         fields = ListingListSerializer.Meta.fields + (
@@ -83,6 +86,9 @@ class ListingDetailSerializer(ListingListSerializer):
             "location",
             "is_negotiable",
             "starting_bid",
+            "current_bid",
+            "minimum_bid",
+            "is_live",
             "min_increment",
             "start_at",
             "extended_count",
@@ -90,6 +96,30 @@ class ListingDetailSerializer(ListingListSerializer):
             "updated_at",
             "images",
         )
+
+    def _top_bid(self, obj):
+        annotated = getattr(obj, "highest_bid", None)
+        if annotated is not None:
+            return annotated
+        if obj.type != Listing.Type.AUCTION:
+            return None
+        return obj.bids.order_by("-amount", "-created_at").values_list("amount", flat=True).first()
+
+    def get_current_bid(self, obj):
+        if obj.type != Listing.Type.AUCTION:
+            return None
+        highest = self._top_bid(obj)
+        amount = highest if highest is not None else obj.starting_bid
+        if amount is None:
+            return None
+        return str(Decimal(amount).quantize(Decimal("0.01")))
+
+    def get_minimum_bid(self, obj):
+        if obj.type != Listing.Type.AUCTION:
+            return None
+        from apps.auctions.services import minimum_bid
+
+        return str(minimum_bid(obj))
 
 
 class ListingWriteSerializer(serializers.ModelSerializer):

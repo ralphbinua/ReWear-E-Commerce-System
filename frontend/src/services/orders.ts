@@ -26,6 +26,13 @@ export interface OrderProof {
   screenshot: string | null;
 }
 
+export interface PayoutDestination {
+  method: string;
+  method_label: string;
+  account_name: string;
+  account_number: string;
+}
+
 export interface Order {
   id: string;
   order_number: string;
@@ -50,6 +57,7 @@ export interface Order {
   completed_at: string | null;
   cancel_reason: string;
   latest_proof: OrderProof | null;
+  payout_accounts: PayoutDestination[];
 }
 
 export interface PagedOrders {
