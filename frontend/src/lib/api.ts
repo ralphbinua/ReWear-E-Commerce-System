@@ -67,11 +67,19 @@ api.interceptors.response.use(
       }
     }
 
-    if (status !== undefined && [400, 401, 403, 409, 422].includes(status)) {
+    const method = (original?.method ?? "get").toLowerCase();
+
+    if (method !== "get") {
+      const actionFailed = status === undefined || status >= 500;
       showToast(
-        apiErrorMessage(error, "That action couldn't be completed."),
+        apiErrorMessage(
+          error,
+          actionFailed
+            ? "Could not complete this action. Check your connection and try again."
+            : "That action couldn't be completed.",
+        ),
         "error",
-        "Invalid action",
+        actionFailed ? "Action failed" : "Invalid action",
       );
     }
 

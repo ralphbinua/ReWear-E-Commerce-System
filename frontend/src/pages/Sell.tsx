@@ -6,6 +6,7 @@ import { Truck, Tag, Camera, Trash2, CheckCircle2, Leaf } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { cn } from "../lib/utils";
+import { showToast } from "../lib/toast";
 import {
   listingsService,
   type CreateListingPayload,
@@ -84,6 +85,11 @@ export default function Sell() {
     return sorted.map((s) => ({ value: s.id, label: `${s.name} (${s.kind_label})` }));
   }, [sizes.data]);
 
+  function showInvalidAction(message: string) {
+    setError(message);
+    showToast(message, "error", "Invalid action");
+  }
+
   function validateDetails() {
     if (!title.trim() || title.trim().length < 5)
       return "Give the item a title of at least 5 characters.";
@@ -110,7 +116,7 @@ export default function Sell() {
   async function submitDetails(event: FormEvent) {
     event.preventDefault();
     const invalid = validateDetails();
-    if (invalid) return setError(invalid);
+    if (invalid) return showInvalidAction(invalid);
     setError(null);
     setStep("price");
   }
@@ -118,7 +124,7 @@ export default function Sell() {
   async function submitListing(event: FormEvent) {
     event.preventDefault();
     const invalid = validatePricing();
-    if (invalid) return setError(invalid);
+    if (invalid) return showInvalidAction(invalid);
 
     setSaving(true);
     setError(null);

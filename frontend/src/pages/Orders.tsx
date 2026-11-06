@@ -16,6 +16,7 @@ import {
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { cn } from "../lib/utils";
+import { showToast } from "../lib/toast";
 import {
   payoutService,
   type PayoutMethod,
@@ -75,7 +76,14 @@ function PayoutDetails() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!accountName.trim() || !accountNumber.trim()) return;
+    if (!accountName.trim() || !accountNumber.trim()) {
+      showToast(
+        "Add your payout account name and number before saving.",
+        "error",
+        "Invalid action",
+      );
+      return;
+    }
     addAccount.mutate();
   }
 

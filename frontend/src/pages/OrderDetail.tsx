@@ -13,6 +13,7 @@ import {
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { cn } from "../lib/utils";
+import { showToast } from "../lib/toast";
 import { ordersService, type OrderStatus } from "../services/orders";
 import { useAuth } from "../context/useAuth";
 
@@ -145,8 +146,24 @@ export default function OrderDetail() {
 
   function submitProof(event: FormEvent) {
     event.preventDefault();
-    if (!proofFile) return;
+    if (!proofFile) {
+      showToast(
+        "Choose a payment proof screenshot before submitting.",
+        "error",
+        "Invalid action",
+      );
+      return;
+    }
     uploadProof.mutate(proofFile);
+  }
+
+  function submitReviewAction(event: FormEvent) {
+    event.preventDefault();
+    if (rating <= 0) {
+      showToast("Choose a star rating before submitting.", "error", "Invalid action");
+      return;
+    }
+    submitReview.mutate();
   }
 
   if (isPending)
@@ -436,10 +453,7 @@ export default function OrderDetail() {
                 </div>
               ) : (
                 <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    if (rating > 0) submitReview.mutate();
-                  }}
+                  onSubmit={submitReviewAction}
                   className="rounded-xl bg-white/70 p-3"
                 >
                   <p className="text-sm font-semibold">

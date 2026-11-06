@@ -6,6 +6,7 @@ import { ArrowLeft, Clock, Gavel, History } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { cn } from "../lib/utils";
+import { showToast } from "../lib/toast";
 import { useAuth } from "../context/useAuth";
 import { listingsService, type ListingDetail as ListingDetailData } from "../services/listings";
 import { ordersService } from "../services/orders";
@@ -356,7 +357,9 @@ function AuctionPanel({ listing }: { listing: ListingDetailData }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!value || Number(value) <= 0) {
-      setError("Enter a bid above zero.");
+      const message = "Enter a bid above zero.";
+      setError(message);
+      showToast(message, "error", "Invalid action");
       return;
     }
     mutation.mutate(value);
