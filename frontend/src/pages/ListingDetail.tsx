@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Clock, Gavel, History } from "lucide-react";
+import { ArrowLeft, Clock, Gavel, History, MessageCircle } from "lucide-react";
 
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -197,12 +197,23 @@ export default function ListingDetail() {
                   ? "You sold this piece — check your sales for payment and shipping."
                   : "It's no longer available, but there are plenty more pre-loved finds."}
               </p>
-              <Link
-                to={isSeller ? "/orders" : "/browse"}
-                className="mt-2 inline-block text-sm font-semibold text-leaf-700 underline underline-offset-4"
-              >
-                {isSeller ? "View your sales" : "Browse similar items"}
-              </Link>
+              <div className="mt-2 flex flex-wrap gap-3">
+                <Link
+                  to={isSeller ? "/orders" : "/browse"}
+                  className="inline-block text-sm font-semibold text-leaf-700 underline underline-offset-4"
+                >
+                  {isSeller ? "View your sales" : "Browse similar items"}
+                </Link>
+                {!isSeller && (
+                  <button
+                    type="button"
+                    onClick={() => (user ? navigate(`/messages?listing=${data.id}`) : navigate("/login"))}
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-leaf-700 underline underline-offset-4"
+                  >
+                    <MessageCircle className="h-4 w-4" /> Message seller
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="mt-6 flex flex-col gap-2">
@@ -235,9 +246,16 @@ export default function ListingDetail() {
                     Request donation (soon)
                   </Button>
                 )}
-                <Button variant="ghost" disabled title="Chat ships in the next sprint">
-                  Message seller
-                </Button>
+                {!isSeller && (
+                  <Button
+                    variant="ghost"
+                    onClick={() =>
+                      user ? navigate(`/messages?listing=${data.id}`) : navigate("/login")
+                    }
+                  >
+                    <MessageCircle className="h-4 w-4" /> Message seller
+                  </Button>
+                )}
               </div>
               {checkout.isError && (
                 <p className="text-sm text-red-700" role="alert">
@@ -315,6 +333,7 @@ function AuctionPrice({ listing }: { listing: ListingDetailData }) {
 
 function AuctionPanel({ listing }: { listing: ListingDetailData }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const minimum = listing.minimum_bid ?? listing.starting_bid ?? "0";
@@ -417,6 +436,16 @@ function AuctionPanel({ listing }: { listing: ListingDetailData }) {
             A bid in the last 2 minutes extends the auction.
           </p>
         </>
+      )}
+
+      {!isSeller && (
+        <Button
+          variant="ghost"
+          className="mt-4"
+          onClick={() => (user ? navigate(`/messages?listing=${listing.id}`) : navigate("/login"))}
+        >
+          <MessageCircle className="h-4 w-4" /> Message seller
+        </Button>
       )}
 
       <p role="alert" className={cn("mt-2 text-sm text-red-700", !error && "hidden")}>

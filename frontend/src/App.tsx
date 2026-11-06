@@ -7,6 +7,7 @@ import Home from "./pages/Home";
 import ListingDetail from "./pages/ListingDetail";
 import ListingEdit from "./pages/ListingEdit";
 import Login from "./pages/Login";
+import Messages from "./pages/Messages";
 import MyListings from "./pages/MyListings";
 import NotFound from "./pages/NotFound";
 import OrderDetail from "./pages/OrderDetail";
@@ -27,6 +28,8 @@ export default function App() {
         {/* Route-protected shell for authenticated pages (orders, profile, …) */}
         <Route element={<ProtectedRoute />}>
           <Route path="/sell" element={<Sell />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/messages/:conversationId" element={<Messages />} />
           <Route path="/my-listings" element={<MyListings />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/:id" element={<OrderDetail />} />
