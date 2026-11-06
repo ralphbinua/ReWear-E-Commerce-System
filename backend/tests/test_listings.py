@@ -46,6 +46,27 @@ def test_browse_is_public_and_hides_drafts(api_client, listing):
     assert str(draft.id) not in ids
 
 
+def test_sold_listing_detail_stays_visible(auth_client, other_client, api_client, listing):
+    listing.status = Listing.Status.SOLD
+    listing.save(update_fields=["status"])
+
+    # The buyer and anonymous visitors can still open a sold item.
+    assert other_client.get(f"{LISTINGS_URL}{listing.id}/").status_code == status.HTTP_200_OK
+    assert api_client.get(f"{LISTINGS_URL}{listing.id}/").status_code == status.HTTP_200_OK
+    assert auth_client.get(f"{LISTINGS_URL}{listing.id}/").status_code == status.HTTP_200_OK
+
+
+def test_draft_listing_detail_stays_private(auth_client, other_client, listing):
+    listing.status = Listing.Status.DRAFT
+    listing.save(update_fields=["status"])
+
+    assert (
+        other_client.get(f"{LISTINGS_URL}{listing.id}/").status_code
+        == status.HTTP_404_NOT_FOUND
+    )
+    assert auth_client.get(f"{LISTINGS_URL}{listing.id}/").status_code == status.HTTP_200_OK
+
+
 def test_create_requires_authentication(api_client, category):
     response = api_client.post(LISTINGS_URL, make_listing_payload(category), format="json")
 

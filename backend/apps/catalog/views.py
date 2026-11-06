@@ -64,6 +64,19 @@ class ListingViewSet(viewsets.ModelViewSet):
             return queryset.filter(seller=user)
         if self.action == "list":
             return queryset.filter(status=Listing.Status.ACTIVE)
+        if self.action == "retrieve":
+            # Sold/ended listings stay viewable so order pages and shared links
+            # don't 404. Drafts and removed items stay private to the seller.
+            public_statuses = [
+                Listing.Status.ACTIVE,
+                Listing.Status.SOLD,
+                Listing.Status.ENDED,
+            ]
+            if user.is_authenticated:
+                return queryset.filter(
+                    Q(status__in=public_statuses) | Q(seller=user)
+                )
+            return queryset.filter(status__in=public_statuses)
         if user.is_authenticated:
             return queryset.filter(Q(status=Listing.Status.ACTIVE) | Q(seller=user))
         return queryset.filter(status=Listing.Status.ACTIVE)

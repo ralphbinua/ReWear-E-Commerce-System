@@ -96,6 +96,7 @@ export default function ListingDetail() {
 
   const isAuction = data.type === "auction";
   const isSeller = Boolean(user && user.id === data.seller.id);
+  const isSold = data.status === "sold";
   const images = [...data.images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
   const shown = images[active] ?? images[0];
 
@@ -107,15 +108,17 @@ export default function ListingDetail() {
     ["Location", data.location],
   ].filter(([, value]) => Boolean(value));
 
-  const badge = isAuction
-    ? data.is_live
-      ? "Live auction"
-      : "Auction ended"
-    : data.type === "trade"
-      ? "Open to trade"
-      : data.type === "donation"
-        ? "Free donation"
-        : "Fixed price";
+  const badge = isSold
+    ? "Sold"
+    : isAuction
+      ? data.is_live
+        ? "Live auction"
+        : "Auction ended"
+      : data.type === "trade"
+        ? "Open to trade"
+        : data.type === "donation"
+          ? "Free donation"
+          : "Fixed price";
 
   return (
     <div className="shell py-8 md:py-10">
@@ -185,6 +188,21 @@ export default function ListingDetail() {
 
           {isAuction ? (
             <AuctionPanel listing={data} />
+          ) : isSold ? (
+            <div className="mt-6 rounded-2xl border border-leaf-300/40 bg-white p-4">
+              <p className="font-semibold text-leaf-700">This item has been sold.</p>
+              <p className="mt-1 text-sm text-charcoal/75">
+                {isSeller
+                  ? "You sold this piece — check your sales for payment and shipping."
+                  : "It's no longer available, but there are plenty more pre-loved finds."}
+              </p>
+              <Link
+                to={isSeller ? "/orders" : "/browse"}
+                className="mt-2 inline-block text-sm font-semibold text-leaf-700 underline underline-offset-4"
+              >
+                {isSeller ? "View your sales" : "Browse similar items"}
+              </Link>
+            </div>
           ) : (
             <div className="mt-6 flex flex-col gap-2">
               <div className="sticky bottom-3 z-10 flex flex-wrap gap-3 rounded-2xl bg-cream/90 py-2 backdrop-blur">
