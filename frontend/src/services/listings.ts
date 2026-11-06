@@ -125,6 +125,9 @@ export const listingsService = {
   list: (params: ListingsQuery = {}) =>
     api.get<Paged<Listing>>("/v1/listings/", { params }).then((r) => r.data),
 
+  mine: (params: Pick<ListingsQuery, "page"> = {}) =>
+    api.get<Paged<Listing>>("/v1/listings/mine/", { params }).then((r) => r.data),
+
   get: (id: string) =>
     api.get<ListingDetail>(`/v1/listings/${id}/`).then((r) => r.data),
 
