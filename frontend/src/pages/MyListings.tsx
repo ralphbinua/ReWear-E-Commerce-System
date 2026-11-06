@@ -200,6 +200,9 @@ export default function MyListings() {
                     ? `${listing.bid_count} ${listing.bid_count === 1 ? "bid" : "bids"} · `
                     : ""}
                   Posted {new Date(listing.created_at).toLocaleDateString("en-PH")}
+                  {listing.type === "auction" && listing.end_at
+                    ? ` · Ends ${new Date(listing.end_at).toLocaleDateString("en-PH")}`
+                    : ""}
                 </p>
 
                 <div className="mt-auto flex gap-2 pt-3">

@@ -1,11 +1,15 @@
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db.models import Count, Max, Q
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+
+from apps.core.services import audit, notify
 
 from .filters import ListingFilter
 from .models import Brand, Category, Listing, ListingImage, Size, Watchlist
@@ -90,6 +94,38 @@ class ListingViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(seller=self.request.user)
+
+    def perform_update(self, serializer):
+        listing = serializer.instance
+        previous_end_at = listing.end_at
+        updated = serializer.save()
+
+        if (
+            updated.type == Listing.Type.AUCTION
+            and previous_end_at
+            and updated.end_at
+            and updated.end_at > previous_end_at
+        ):
+            self._notify_auction_extended(updated, previous_end_at)
+
+    def _notify_auction_extended(self, listing, previous_end_at):
+        new_end = timezone.localtime(listing.end_at).strftime("%b %d, %Y %I:%M %p")
+        bidders = get_user_model().objects.filter(bids__listing=listing).distinct()
+        for bidder in bidders:
+            notify(
+                bidder,
+                "auction_extended",
+                "Auction extended",
+                f"{listing.title} now ends {new_end}.",
+                f"/listing/{listing.id}",
+            )
+        audit(
+            self.request.user,
+            "listing.auction_extended",
+            "listing",
+            listing.id,
+            {"from": previous_end_at.isoformat(), "to": listing.end_at.isoformat()},
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

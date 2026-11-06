@@ -180,18 +180,39 @@ class ListingWriteSerializer(serializers.ModelSerializer):
             end_at = current("end_at")
             start_at = current("start_at")
             reserve = current("reserve_price")
+            end_changed = instance is None or (
+                "end_at" in attrs and end_at != instance.end_at
+            )
+            start_changed = instance is None or (
+                "start_at" in attrs and start_at != instance.start_at
+            )
+            timing_changed = end_changed or start_changed
             errors: dict[str, str] = {}
 
             if not starting_bid or starting_bid <= 0:
                 errors["starting_bid"] = "Auctions need a starting bid above zero."
             if not end_at:
                 errors["end_at"] = "Auctions need an end time."
-            elif end_at <= timezone.now():
+            elif timing_changed and end_at <= timezone.now():
                 errors["end_at"] = "The auction must end in the future."
-            elif start_at and end_at <= start_at:
+            elif timing_changed and start_at and end_at <= start_at:
                 errors["end_at"] = "The auction must end after it starts."
             if reserve is not None and starting_bid and reserve < starting_bid:
                 errors["reserve_price"] = "The reserve cannot be below the starting bid."
+
+            # Sellers may move a live auction's end time, but only later once
+            # bids exist — shortening it would pull the rug out from bidders.
+            if (
+                instance is not None
+                and "end_at" in attrs
+                and end_at != instance.end_at
+            ):
+                if not instance.is_auction_live:
+                    errors["end_at"] = "Only a live auction can change its end time."
+                elif end_at < instance.end_at and instance.bids.exists():
+                    errors["end_at"] = (
+                        "This auction already has bids, so the end time can only be extended."
+                    )
 
             if errors:
                 raise serializers.ValidationError(errors)

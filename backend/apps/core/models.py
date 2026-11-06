@@ -20,6 +20,7 @@ class Notification(TimeStampedModel):
         AUCTION_WON = "auction_won", "Auction won"
         AUCTION_LOST = "auction_lost", "Auction lost"
         AUCTION_ENDING = "auction_ending", "Auction ending soon"
+        AUCTION_EXTENDED = "auction_extended", "Auction extended"
         ORDER_UPDATE = "order_update", "Order update"
         PAYMENT_REVIEW = "payment_review", "Payment needs review"
         MESSAGE = "message", "New message"

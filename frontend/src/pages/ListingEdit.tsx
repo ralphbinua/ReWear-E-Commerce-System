@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Upload } from "lucide-react";
 
 import { Button } from "../components/ui/button";
@@ -18,6 +18,15 @@ const selectClass =
   "w-full rounded-xl border border-leaf-300/50 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-charcoal/40 focus:border-leaf-500 focus:ring-2 focus:ring-leaf-500/30";
 
 const fieldLabel = "grid gap-1.5 text-sm font-medium";
+
+function toDatetimeLocal(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+}
 
 export default function ListingEdit() {
   const { id } = useParams<{ id: string }>();
@@ -107,6 +116,8 @@ function EditForm({
     location: listing.location,
   }));
 
+  const queryClient = useQueryClient();
+  const [endAt, setEndAt] = useState(() => toDatetimeLocal(listing.end_at));
   const [images, setImages] = useState<ListingImage[]>(listing.images);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -136,8 +147,16 @@ function EditForm({
       location: String(form.location),
     };
 
+    if (listing.type === "auction") {
+      payload.end_at = endAt ? new Date(endAt).toISOString() : null;
+    }
+
     try {
       await listingsService.update(listing.id, payload);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["listing", listing.id] }),
+        queryClient.invalidateQueries({ queryKey: ["my-listings"] }),
+      ]);
       setSaved(true);
     } catch (err: unknown) {
       const data = (err as { response?: { data?: unknown } })?.response?.data;
@@ -283,6 +302,37 @@ function EditForm({
           placeholder="Quezon City"
         />
       </label>
+
+      {listing.type === "auction" && (
+        <section className="grid gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-amber-900">Auction end date</h3>
+            <p className="mt-1 text-xs text-amber-900/70">
+              Current end:{" "}
+              {listing.end_at
+                ? new Date(listing.end_at).toLocaleString("en-PH")
+                : "Not set"}
+              .{" "}
+              {!listing.is_live
+                ? "This auction isn't live, so its end date is locked."
+                : listing.bid_count > 0
+                  ? "Bidders already joined, so you can only extend the auction."
+                  : "You can move this end date earlier or later."}
+            </p>
+          </div>
+
+          <label className={fieldLabel}>
+            Ends at
+            <Input
+              type="datetime-local"
+              required={listing.is_live}
+              disabled={!listing.is_live}
+              value={endAt}
+              onChange={(e) => setEndAt(e.target.value)}
+            />
+          </label>
+        </section>
+      )}
 
       <section>
         <h3 className="text-sm font-semibold uppercase tracking-wide text-charcoal/60">

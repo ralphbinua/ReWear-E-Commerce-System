@@ -1,5 +1,6 @@
 import io
 from datetime import timedelta
+from decimal import Decimal
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -7,7 +8,9 @@ from django.utils import timezone
 from PIL import Image
 from rest_framework import status
 
+from apps.auctions.models import Bid
 from apps.catalog.models import Listing
+from apps.core.models import Notification
 
 pytestmark = pytest.mark.django_db
 
@@ -236,3 +239,89 @@ def test_categories_are_public(api_client, category):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data[0]["name"] == "Tops"
+
+
+def make_auction(user, category, **overrides):
+    defaults = {
+        "seller": user,
+        "title": "Leica M6-ish camera",
+        "description": "Good working condition.",
+        "category": category,
+        "condition": Listing.Condition.LIKE_NEW,
+        "type": Listing.Type.AUCTION,
+        "starting_bid": Decimal("500.00"),
+        "price": Decimal("500.00"),
+        "end_at": timezone.now() + timedelta(days=1),
+    }
+    defaults.update(overrides)
+    return Listing.objects.create(**defaults)
+
+
+def test_owner_can_extend_auction_end_date(auth_client, user, category):
+    listing = make_auction(user, category)
+    new_end = timezone.now() + timedelta(days=3)
+
+    response = auth_client.patch(
+        f"{LISTINGS_URL}{listing.id}/",
+        {"end_at": new_end.isoformat()},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK, response.data
+    listing.refresh_from_db()
+    assert listing.end_at == new_end
+
+
+def test_bidders_are_notified_when_auction_is_extended(
+    auth_client, user, other_user, category
+):
+    listing = make_auction(user, category)
+    Bid.objects.create(listing=listing, bidder=other_user, amount=Decimal("700.00"))
+    new_end = timezone.now() + timedelta(days=3)
+
+    response = auth_client.patch(
+        f"{LISTINGS_URL}{listing.id}/",
+        {"end_at": new_end.isoformat()},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK, response.data
+    notification = Notification.objects.get(
+        user=other_user, kind=Notification.Kind.AUCTION_EXTENDED
+    )
+    assert notification.title == "Auction extended"
+
+
+def test_cannot_shorten_auction_end_date_after_bids(auth_client, user, other_user, category):
+    listing = make_auction(user, category)
+    original_end = listing.end_at
+    Bid.objects.create(listing=listing, bidder=other_user, amount=Decimal("700.00"))
+
+    response = auth_client.patch(
+        f"{LISTINGS_URL}{listing.id}/",
+        {"end_at": (timezone.now() + timedelta(hours=1)).isoformat()},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "end_at" in response.data
+    listing.refresh_from_db()
+    assert listing.end_at == original_end
+
+
+def test_non_live_auction_end_date_is_locked(auth_client, user, category):
+    listing = make_auction(
+        user,
+        category,
+        status=Listing.Status.SOLD,
+        end_at=timezone.now() - timedelta(days=1),
+    )
+
+    response = auth_client.patch(
+        f"{LISTINGS_URL}{listing.id}/",
+        {"end_at": (timezone.now() + timedelta(days=2)).isoformat()},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "end_at" in response.data
