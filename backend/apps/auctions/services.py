@@ -61,6 +61,8 @@ def place_bid(listing, bidder, amount: Decimal):
             raise BidError("This auction has ended.")
         if listing.start_at and listing.start_at > now:
             raise BidError("This auction hasn't started yet.")
+        if bidder.is_staff:
+            raise BidError("Staff accounts can't bid.")
         if listing.seller_id == bidder.id:
             raise BidError("You can't bid on your own listing.")
         if amount <= 0:

@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from apps.catalog.serializers import ListingDetailSerializer
 from apps.commerce.models import Dispute
-from apps.commerce.serializers import OrderSerializer
+from apps.core.models import AuditLog
 
 from .models import ModerationAction, Report
 
@@ -17,6 +17,7 @@ class SystemSummarySerializer(serializers.Serializer):
     total_orders = serializers.IntegerField()
     disputed_orders = serializers.IntegerField()
     platform_revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
+    platform_fee_rate = serializers.DecimalField(max_digits=5, decimal_places=4)
 
 
 class AdminListingSerializer(ListingDetailSerializer):
@@ -108,6 +109,25 @@ class AdminPasswordResetSerializer(serializers.Serializer):
     )
 
 
+class AuditLogSerializer(serializers.ModelSerializer):
+    actor_name = serializers.CharField(source="actor.display_name", read_only=True, default=None)
+
+    class Meta:
+        model = AuditLog
+        fields = (
+            "id",
+            "actor",
+            "actor_name",
+            "action",
+            "target_type",
+            "target_id",
+            "metadata",
+            "ip_address",
+            "created_at",
+        )
+        read_only_fields = fields
+
+
 class SystemDisputeSerializer(serializers.ModelSerializer):
     order_number = serializers.CharField(source="order.order_number", read_only=True)
     opened_by_name = serializers.CharField(source="opened_by.display_name", read_only=True)
@@ -157,7 +177,3 @@ class ModerationActionSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = fields
-
-
-class AdminOrderSerializer(OrderSerializer):
-    pass

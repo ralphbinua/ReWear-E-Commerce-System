@@ -17,6 +17,7 @@ class Offer(models.Model):
         ACCEPTED = "accepted", "Accepted"
         DECLINED = "declined", "Declined"
         EXPIRED = "expired", "Expired"
+        CANCELLED = "cancelled", "Cancelled"
 
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="offers")
     buyer = models.ForeignKey(

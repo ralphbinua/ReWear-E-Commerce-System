@@ -126,3 +126,27 @@ def test_summary_returns_system_counts(staff_client, user, listing):
     assert response.status_code == status.HTTP_200_OK
     assert response.data["active_users"] >= 1
     assert response.data["active_listings"] == 1
+
+
+def test_staff_can_manage_catalog_reference_data(staff_client, category):
+    create = staff_client.post(
+        f"{ADMIN_URL}brands/",
+        {"name": "ReWear Basics"},
+        format="json",
+    )
+    assert create.status_code == status.HTTP_201_CREATED
+    brand_id = create.data["id"]
+
+    update = staff_client.patch(
+        f"{ADMIN_URL}brands/{brand_id}/", {"name": "ReWear Basics Co."}, format="json"
+    )
+    assert update.status_code == status.HTTP_200_OK
+    assert update.data["name"] == "ReWear Basics Co."
+
+
+def test_audit_logs_are_staff_only(staff_client, other_client):
+    response = staff_client.get(f"{ADMIN_URL}audit-logs/")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert isinstance(response.data, list)
+    assert other_client.get(f"{ADMIN_URL}audit-logs/").status_code == status.HTTP_403_FORBIDDEN

@@ -8,7 +8,7 @@ from rest_framework import serializers
 
 from apps.catalog.models import Listing
 
-from .models import Order, PaymentProof, Review
+from .models import Offer, Order, PaymentProof, Review
 
 
 class OrderListingSerializer(serializers.Serializer):
@@ -42,6 +42,34 @@ class ReviewSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = ("id", "reviewer", "reviewee", "created_at")
+
+
+class OfferSerializer(serializers.ModelSerializer):
+    listing = OrderListingSerializer(read_only=True)
+    buyer_name = serializers.CharField(source="buyer.display_name", read_only=True)
+    seller_name = serializers.CharField(source="listing.seller.display_name", read_only=True)
+
+    class Meta:
+        model = Offer
+        fields = (
+            "id",
+            "listing",
+            "buyer",
+            "buyer_name",
+            "seller_name",
+            "amount",
+            "message",
+            "status",
+            "created_at",
+            "responded_at",
+        )
+        read_only_fields = ("id", "buyer", "status", "created_at", "responded_at")
+
+
+class OfferCreateSerializer(serializers.Serializer):
+    listing = serializers.UUIDField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0.01"))
+    message = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -122,6 +150,8 @@ class CheckoutSerializer(serializers.Serializer):
 
         with transaction.atomic():
             listing = Listing.objects.select_for_update().get(pk=listing_id)
+            if buyer.is_staff:
+                raise serializers.ValidationError("Staff accounts can't buy listings.")
             if listing.seller_id == buyer.id:
                 raise serializers.ValidationError("You can't buy your own listing.")
             if listing.status != Listing.Status.ACTIVE:

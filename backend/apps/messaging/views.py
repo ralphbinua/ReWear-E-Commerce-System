@@ -110,6 +110,11 @@ class ListingConversationView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, listing_id):
+        if request.user.is_staff:
+            return Response(
+                {"detail": "Staff accounts can't use marketplace chat."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         listing = _get_visible_listing(request, listing_id)
         if listing is None:
             return Response({"detail": "Listing not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -152,6 +157,11 @@ class ListingConversationMessagesView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, listing_id):
+        if request.user.is_staff:
+            return Response(
+                {"detail": "Staff accounts can't use marketplace chat."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         listing = _get_visible_listing(request, listing_id)
         if listing is None:
             return Response({"detail": "Listing not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -176,6 +186,8 @@ class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
     def get_queryset(self):
+        if self.request.user.is_staff:
+            return Conversation.objects.none()
         return _conversation_queryset(self.request.user)
 
     def get_serializer_class(self):

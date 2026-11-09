@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Avg, Count, Q, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -13,9 +14,11 @@ from rest_framework.response import Response
 from apps.catalog.models import Listing
 from apps.core.services import audit, notify
 
-from .models import Order, PaymentProof, PlatformFee, Review
+from .models import Offer, Order, PaymentProof, PlatformFee, Review
 from .serializers import (
     CheckoutSerializer,
+    OfferCreateSerializer,
+    OfferSerializer,
     OrderSerializer,
     PaymentProofSerializer,
     ReviewSerializer,
@@ -174,6 +177,12 @@ class OrderViewSet(
 
     def get_queryset(self):
         user = self.request.user
+        if user.is_staff:
+            return (
+                Order.objects.select_related("listing", "buyer", "seller")
+                .prefetch_related("listing__images", "reviews__reviewer")
+                .order_by("-created_at")
+            )
         qs = (
             Order.objects.select_related("listing", "buyer", "seller")
             .prefetch_related(
@@ -438,3 +447,217 @@ class OrderViewSet(
             f"/orders/{order.id}",
         )
         return Response(OrderSerializer(order, context={"request": request}).data)
+
+
+class OfferViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Buyer offers on negotiable fixed-price listings."""
+
+    serializer_class = OfferSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = (
+            Offer.objects.select_related("listing", "listing__seller", "buyer")
+            .prefetch_related("listing__images")
+            .filter(Q(buyer=user) | Q(listing__seller=user))
+            .order_by("-created_at")
+        )
+        listing_id = self.request.query_params.get("listing")
+        if listing_id:
+            queryset = queryset.filter(listing_id=listing_id)
+        offer_status = self.request.query_params.get("status")
+        if offer_status:
+            queryset = queryset.filter(status=offer_status)
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        serializer = OfferCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        listing_id = serializer.validated_data["listing"]
+        amount = serializer.validated_data["amount"].quantize(Decimal("0.01"))
+        message = serializer.validated_data.get("message", "")
+
+        with transaction.atomic():
+            listing = Listing.objects.select_for_update().get(pk=listing_id)
+            if request.user.is_staff:
+                return Response(
+                    {"detail": "Staff accounts can't make offers."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if listing.seller_id == request.user.id:
+                return Response(
+                    {"detail": "You can't make an offer on your own listing."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if listing.type != Listing.Type.FIXED or not listing.is_negotiable:
+                return Response(
+                    {"detail": "This listing isn't open to offers."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if listing.status != Listing.Status.ACTIVE:
+                return Response(
+                    {"detail": "This listing is no longer available."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            if amount <= 0 or amount >= listing.price:
+                return Response(
+                    {"detail": "Offer an amount below the asking price."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if Offer.objects.filter(
+                listing=listing,
+                buyer=request.user,
+                status=Offer.Status.PENDING,
+            ).exists():
+                return Response(
+                    {"detail": "You already have a pending offer on this listing."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            offer = Offer.objects.create(
+                listing=listing,
+                buyer=request.user,
+                amount=amount,
+                message=message,
+            )
+
+        notify(
+            listing.seller,
+            "trade_offer",
+            "New price offer",
+            f"{request.user.display_name} offered ₱{amount:,.2f} for {listing.title}.",
+            f"/listing/{listing.id}",
+        )
+        audit(request.user, "offer.created", "offer", offer.id, {"amount": str(amount)})
+        return Response(
+            OfferSerializer(offer, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"], url_path="accept")
+    def accept(self, request, pk=None):
+        offer = get_object_or_404(self.get_queryset(), pk=pk)
+        if offer.listing.seller_id != request.user.id:
+            return Response(
+                {"detail": "Only the seller can accept an offer."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if offer.status != Offer.Status.PENDING:
+            return Response(
+                {"detail": "This offer is no longer pending."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        with transaction.atomic():
+            listing = Listing.objects.select_for_update().get(pk=offer.listing_id)
+            offer = Offer.objects.select_for_update().get(pk=offer.pk)
+            if listing.status != Listing.Status.ACTIVE:
+                return Response(
+                    {"detail": "This listing is no longer available."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            offer.status = Offer.Status.ACCEPTED
+            offer.responded_at = timezone.now()
+            offer.save(update_fields=["status", "responded_at"])
+
+            Offer.objects.filter(
+                listing=listing,
+                buyer=offer.buyer,
+                status=Offer.Status.PENDING,
+            ).exclude(pk=offer.pk).update(
+                status=Offer.Status.EXPIRED, responded_at=timezone.now()
+            )
+
+            rate = settings.PLATFORM_FEE_RATE
+            platform_fee = (offer.amount * rate).quantize(Decimal("0.01"))
+            order = Order.objects.create(
+                listing=listing,
+                buyer=offer.buyer,
+                seller=listing.seller,
+                item_price=offer.amount,
+                shipping_fee=Decimal("0.00"),
+                platform_fee=platform_fee,
+                total=offer.amount,
+            )
+            listing.status = Listing.Status.SOLD
+            listing.save(update_fields=["status", "updated_at"])
+            PlatformFee.objects.create(order=order, rate=rate, amount=platform_fee)
+
+        notify(
+            offer.buyer,
+            "order_update",
+            "Offer accepted",
+            f"The seller accepted your ₱{offer.amount:,.2f} offer for {listing.title}.",
+            f"/orders/{order.id}",
+        )
+        audit(request.user, "offer.accepted", "offer", offer.id, {"order": order.order_number})
+        return Response(
+            {
+                "offer": OfferSerializer(offer, context={"request": request}).data,
+                "order": OrderSerializer(order, context={"request": request}).data,
+            }
+        )
+
+    @action(detail=True, methods=["post"], url_path="decline")
+    def decline(self, request, pk=None):
+        offer = get_object_or_404(self.get_queryset(), pk=pk)
+        if offer.listing.seller_id != request.user.id:
+            return Response(
+                {"detail": "Only the seller can decline an offer."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if offer.status != Offer.Status.PENDING:
+            return Response(
+                {"detail": "This offer is no longer pending."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        offer.status = Offer.Status.DECLINED
+        offer.responded_at = timezone.now()
+        offer.save(update_fields=["status", "responded_at"])
+
+        notify(
+            offer.buyer,
+            "trade_offer",
+            "Offer declined",
+            f"The seller declined your ₱{offer.amount:,.2f} offer for {offer.listing.title}.",
+            f"/listing/{offer.listing.id}",
+        )
+        audit(request.user, "offer.declined", "offer", offer.id, {})
+        return Response(OfferSerializer(offer, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        offer = get_object_or_404(self.get_queryset(), pk=pk)
+        if offer.buyer_id != request.user.id:
+            return Response(
+                {"detail": "Only the buyer can withdraw an offer."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if offer.status != Offer.Status.PENDING:
+            return Response(
+                {"detail": "This offer is no longer pending."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        offer.status = Offer.Status.CANCELLED
+        offer.responded_at = timezone.now()
+        offer.save(update_fields=["status", "responded_at"])
+
+        notify(
+            offer.listing.seller,
+            "trade_offer",
+            "Offer withdrawn",
+            f"{request.user.display_name} withdrew their offer for {offer.listing.title}.",
+            f"/listing/{offer.listing.id}",
+        )
+        audit(request.user, "offer.cancelled", "offer", offer.id, {})
+        return Response(OfferSerializer(offer, context={"request": request}).data)

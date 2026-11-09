@@ -1,6 +1,7 @@
 import secrets
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
@@ -10,9 +11,11 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.catalog.models import Listing
+from apps.catalog.models import Brand, Category, Listing, Size
+from apps.catalog.serializers import BrandSerializer, CategorySerializer, SizeSerializer
 from apps.commerce.models import Dispute, Order, PlatformFee
 from apps.commerce.serializers import OrderSerializer
+from apps.core.models import AuditLog
 from apps.core.services import audit, notify
 
 from .models import ModerationAction, Report
@@ -20,6 +23,7 @@ from .serializers import (
     AdminListingSerializer,
     AdminPasswordResetSerializer,
     AdminUserUpdateSerializer,
+    AuditLogSerializer,
     ResolveDisputeSerializer,
     ResolveReportSerializer,
     SystemDisputeSerializer,
@@ -51,6 +55,7 @@ class SystemSummaryView(APIView):
                 status=PlatformFee.Status.SETTLED
             ).aggregate(total=Sum("amount"))["total"]
             or Decimal("0.00"),
+            "platform_fee_rate": settings.PLATFORM_FEE_RATE,
         }
         return Response(SystemSummarySerializer(summary).data)
 
@@ -385,3 +390,48 @@ class AdminOrderViewSet(
             .prefetch_related("listing__images", "reviews__reviewer")
             .order_by("-created_at")
         )
+
+
+class AdminCategoryViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAdminUser]
+    serializer_class = CategorySerializer
+    pagination_class = None
+    queryset = Category.objects.all().order_by("order", "name")
+
+
+class AdminBrandViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAdminUser]
+    serializer_class = BrandSerializer
+    pagination_class = None
+    queryset = Brand.objects.all().order_by("name")
+
+
+class AdminSizeViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAdminUser]
+    serializer_class = SizeSerializer
+    pagination_class = None
+    queryset = Size.objects.all().order_by("kind", "order", "name")
+
+
+class AuditLogViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    permission_classes = [IsAdminUser]
+    serializer_class = AuditLogSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = AuditLog.objects.select_related("actor").order_by("-created_at")
+        action_name = self.request.query_params.get("action")
+        if action_name:
+            queryset = queryset.filter(action=action_name)
+        search = self.request.query_params.get("q")
+        if search:
+            queryset = queryset.filter(
+                Q(action__icontains=search)
+                | Q(target_type__icontains=search)
+                | Q(target_id__icontains=search)
+            )
+        return queryset

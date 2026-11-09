@@ -10,6 +10,7 @@ export interface SystemSummary {
   total_orders: number;
   disputed_orders: number;
   platform_revenue: string;
+  platform_fee_rate: string;
 }
 
 export interface AdminListing {
@@ -71,6 +72,26 @@ export interface SystemDispute {
   status: string;
   resolution_note: string;
   created_at: string;
+}
+
+export interface AuditLog {
+  id: number;
+  actor: number | null;
+  actor_name: string | null;
+  action: string;
+  target_type: string;
+  target_id: string;
+  metadata: Record<string, unknown>;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface CatalogReference {
+  id: number;
+  name: string;
+  slug?: string;
+  kind?: string;
+  order?: number;
 }
 
 export const adminService = {
@@ -141,4 +162,31 @@ export const adminService = {
       .then((r) => r.data),
 
   orders: () => api.get<Order[]>("/v1/admin/orders/").then((r) => r.data),
+
+  categories: () => api.get<CatalogReference[]>("/v1/admin/categories/").then((r) => r.data),
+  createCategory: (payload: { name: string }) =>
+    api.post<CatalogReference>("/v1/admin/categories/", payload).then((r) => r.data),
+  updateCategory: (id: number, payload: { name: string }) =>
+    api.patch<CatalogReference>(`/v1/admin/categories/${id}/`, payload).then((r) => r.data),
+  deleteCategory: (id: number) =>
+    api.delete(`/v1/admin/categories/${id}/`).then(() => undefined),
+
+  brands: () => api.get<CatalogReference[]>("/v1/admin/brands/").then((r) => r.data),
+  createBrand: (payload: { name: string }) =>
+    api.post<CatalogReference>("/v1/admin/brands/", payload).then((r) => r.data),
+  updateBrand: (id: number, payload: { name: string }) =>
+    api.patch<CatalogReference>(`/v1/admin/brands/${id}/`, payload).then((r) => r.data),
+  deleteBrand: (id: number) =>
+    api.delete(`/v1/admin/brands/${id}/`).then(() => undefined),
+
+  sizes: () => api.get<CatalogReference[]>("/v1/admin/sizes/").then((r) => r.data),
+  createSize: (payload: { kind: string; name: string }) =>
+    api.post<CatalogReference>("/v1/admin/sizes/", payload).then((r) => r.data),
+  updateSize: (id: number, payload: { kind: string; name: string }) =>
+    api.patch<CatalogReference>(`/v1/admin/sizes/${id}/`, payload).then((r) => r.data),
+  deleteSize: (id: number) =>
+    api.delete(`/v1/admin/sizes/${id}/`).then(() => undefined),
+
+  auditLogs: (params: { action?: string; q?: string } = {}) =>
+    api.get<AuditLog[]>("/v1/admin/audit-logs/", { params }).then((r) => r.data),
 };

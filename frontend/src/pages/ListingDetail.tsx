@@ -9,6 +9,7 @@ import { cn } from "../lib/utils";
 import { showToast } from "../lib/toast";
 import { useAuth } from "../context/useAuth";
 import { listingsService, type ListingDetail as ListingDetailData } from "../services/listings";
+import { offersService } from "../services/offers";
 import { ordersService } from "../services/orders";
 
 function money(value: string | null | undefined) {
@@ -97,6 +98,7 @@ export default function ListingDetail() {
 
   const isAuction = data.type === "auction";
   const isSeller = Boolean(user && user.id === data.seller.id);
+  const isStaff = Boolean(user?.is_staff);
   const isSold = data.status === "sold";
   const images = [...data.images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
   const shown = images[active] ?? images[0];
@@ -204,7 +206,7 @@ export default function ListingDetail() {
                 >
                   {isSeller ? "View your sales" : "Browse similar items"}
                 </Link>
-                {!isSeller && (
+                {!isSeller && !isStaff && (
                   <button
                     type="button"
                     onClick={() => (user ? navigate(`/messages?listing=${data.id}`) : navigate("/rewear/login"))}
@@ -218,7 +220,7 @@ export default function ListingDetail() {
           ) : (
             <div className="mt-6 flex flex-col gap-2">
               <div className="sticky bottom-3 z-10 flex flex-wrap gap-3 rounded-2xl bg-cream/90 py-2 backdrop-blur">
-                {data.type === "fixed" && data.status === "active" && !isSeller && (
+                {data.type === "fixed" && data.status === "active" && !isSeller && !isStaff && (
                   <Button
                     className="flex-1"
                     disabled={checkout.isPending}
@@ -246,7 +248,12 @@ export default function ListingDetail() {
                     Request donation (soon)
                   </Button>
                 )}
-                {!isSeller && (
+                {data.type === "fixed" && isStaff && (
+                  <p className="w-full rounded-xl bg-cream p-3 text-sm text-charcoal/70">
+                    Staff accounts are read-only in the marketplace.
+                  </p>
+                )}
+                {!isSeller && !isStaff && (
                   <Button
                     variant="ghost"
                     onClick={() =>
@@ -263,6 +270,10 @@ export default function ListingDetail() {
                 </p>
               )}
             </div>
+          )}
+
+          {data.type === "fixed" && data.status === "active" && !isStaff && (
+            <OfferPanel listing={data} isSeller={isSeller} />
           )}
 
           {isSeller && (
@@ -303,6 +314,208 @@ export default function ListingDetail() {
         </div>
       </div>
     </div>
+  );
+}
+
+function OfferPanel({ listing, isSeller }: { listing: ListingDetailData; isSeller: boolean }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [amount, setAmount] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const offers = useQuery({
+    queryKey: ["listing-offers", listing.id],
+    queryFn: () => offersService.list({ listing: listing.id }),
+    enabled: Boolean(user),
+    refetchInterval: 15_000,
+  });
+
+  const myPendingOffer = offers.data?.find(
+    (offer) => offer.buyer === user?.id && offer.status === "pending",
+  );
+  const acceptedOffer = offers.data?.find((offer) => offer.status === "accepted");
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["listing-offers", listing.id] });
+
+  const createOffer = useMutation({
+    mutationFn: () =>
+      offersService.create({
+        listing: listing.id,
+        amount,
+        message: message.trim() || undefined,
+      }),
+    onSuccess: () => {
+      setAmount("");
+      setMessage("");
+      setError(null);
+      showToast("Offer sent.", "success", "ReWear");
+      invalidate();
+    },
+    onError: (mutationError) => {
+      setError(apiErrorMessage(mutationError, "Couldn't send your offer."));
+    },
+  });
+
+  const accept = useMutation({
+    mutationFn: offersService.accept,
+    onSuccess: (result) => {
+      showToast("Offer accepted. Order created.", "success", "ReWear");
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["listing", listing.id] });
+      navigate(`/orders/${result.order.id}`);
+    },
+    onError: (mutationError) => {
+      setError(apiErrorMessage(mutationError, "Couldn't accept this offer."));
+    },
+  });
+
+  const decline = useMutation({
+    mutationFn: offersService.decline,
+    onSuccess: () => {
+      showToast("Offer declined.", "success", "ReWear");
+      invalidate();
+    },
+    onError: (mutationError) => {
+      setError(apiErrorMessage(mutationError, "Couldn't decline this offer."));
+    },
+  });
+
+  const cancel = useMutation({
+    mutationFn: offersService.cancel,
+    onSuccess: () => {
+      showToast("Offer withdrawn.", "success", "ReWear");
+      invalidate();
+    },
+    onError: (mutationError) => {
+      setError(apiErrorMessage(mutationError, "Couldn't withdraw this offer."));
+    },
+  });
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const value = Number(amount);
+    if (!value || value <= 0) {
+      const text = "Enter an offer amount above zero.";
+      setError(text);
+      showToast(text, "error", "Invalid action");
+      return;
+    }
+    if (value >= Number(listing.price)) {
+      const text = "Offer below the asking price, or use Buy now for the full price.";
+      setError(text);
+      showToast(text, "error", "Invalid action");
+      return;
+    }
+    createOffer.mutate();
+  }
+
+  if (!listing.is_negotiable) return null;
+
+  const pendingOffers = offers.data?.filter((offer) => offer.status === "pending") ?? [];
+
+  return (
+    <section className="mt-6 rounded-3xl border border-leaf-300/40 bg-white p-5">
+      <h2 className="font-semibold text-charcoal">Make an offer</h2>
+
+      {isSeller ? (
+        <>
+          {pendingOffers.length === 0 && offers.data && (
+            <p className="mt-2 text-sm text-charcoal/60">No pending offers yet.</p>
+          )}
+          <div className="mt-3 grid gap-3">
+            {pendingOffers.map((offer) => (
+              <div key={offer.id} className="rounded-2xl bg-cream/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">₱ {money(offer.amount)}</p>
+                    <p className="text-xs text-charcoal/55">
+                      by {offer.buyer_name} · {new Date(offer.created_at).toLocaleString("en-PH")}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => accept.mutate(offer.id)} disabled={accept.isPending}>
+                      Accept
+                    </Button>
+                    <Button variant="ghost" onClick={() => decline.mutate(offer.id)} disabled={decline.isPending}>
+                      Decline
+                    </Button>
+                  </div>
+                </div>
+                {offer.message && <p className="mt-2 text-sm text-charcoal/75">{offer.message}</p>}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : !user ? (
+        <p className="mt-2 text-sm text-charcoal/70">
+          <Link to="/rewear/login" className="font-semibold text-leaf-700 underline">
+            Sign in
+          </Link>{" "}
+          to make an offer.
+        </p>
+      ) : acceptedOffer ? (
+        <p className="mt-2 text-sm text-leaf-700">
+          Your offer of ₱ {money(acceptedOffer.amount)} was accepted — check Orders to pay.
+        </p>
+      ) : myPendingOffer ? (
+        <div className="mt-3 rounded-2xl bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">
+            Your offer of ₱ {money(myPendingOffer.amount)} is pending.
+          </p>
+          {myPendingOffer.message && (
+            <p className="mt-1 text-sm text-amber-900/80">{myPendingOffer.message}</p>
+          )}
+          <Button
+            variant="ghost"
+            className="mt-3"
+            onClick={() => cancel.mutate(myPendingOffer.id)}
+            disabled={cancel.isPending}
+          >
+            Withdraw offer
+          </Button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="mt-4 grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+            <label className="grid gap-1.5 text-sm font-medium">
+              Offer (₱)
+              <Input
+                type="number"
+                min={1}
+                step="0.01"
+                inputMode="decimal"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                max={Number(listing.price) - 1}
+                required
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm font-medium">
+              Message (optional)
+              <Input
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                maxLength={500}
+                placeholder="I can pick it up today…"
+              />
+            </label>
+          </div>
+          <div>
+            <Button type="submit" disabled={createOffer.isPending}>
+              {createOffer.isPending ? "Sending…" : "Send offer"}
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -397,6 +610,10 @@ function AuctionPanel({ listing }: { listing: ListingDetailData }) {
         <p className="mt-3 rounded-xl bg-cream p-3 text-sm text-charcoal/70">
           This is your auction, so you can't bid on it.
         </p>
+      ) : user?.is_staff ? (
+        <p className="mt-3 rounded-xl bg-cream p-3 text-sm text-charcoal/70">
+          Staff accounts are read-only in the marketplace.
+        </p>
       ) : !user ? (
         <p className="mt-3 text-sm text-charcoal/70">
           <Link to="/rewear/login" className="font-semibold text-leaf-700 underline">
@@ -438,7 +655,7 @@ function AuctionPanel({ listing }: { listing: ListingDetailData }) {
         </>
       )}
 
-      {!isSeller && (
+      {!isSeller && !user?.is_staff && (
         <Button
           variant="ghost"
           className="mt-4"

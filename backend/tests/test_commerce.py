@@ -3,6 +3,7 @@ import io
 import pytest
 from PIL import Image
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from apps.catalog.models import Listing
 from apps.commerce.models import Order, PaymentProof, PlatformFee
@@ -40,6 +41,23 @@ def test_checkout_creates_order_and_sells_listing(auth_client, other_client, oth
 def test_seller_cannot_buy_own_listing(auth_client, listing):
     response = buy(auth_client, listing)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_staff_cannot_buy_or_offer(api_client, user, other_user, listing):
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    staff_client = APIClient()
+    staff_client.force_authenticate(user=user)
+
+    buyer = buy(staff_client, listing)
+    offer = staff_client.post(
+        "/api/v1/offers/",
+        {"listing": str(listing.id), "amount": "950.00"},
+        format="json",
+    )
+
+    assert buyer.status_code == status.HTTP_400_BAD_REQUEST
+    assert offer.status_code == status.HTTP_400_BAD_REQUEST
 
 
 def test_full_sale_flow(auth_client, other_client, other_user, listing):

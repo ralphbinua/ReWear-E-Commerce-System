@@ -30,7 +30,15 @@ import {
 } from "../services/admin";
 import { useAuth } from "../context/useAuth";
 
-type Tab = "overview" | "listings" | "reports" | "users" | "orders" | "disputes";
+type Tab =
+  | "overview"
+  | "listings"
+  | "reports"
+  | "users"
+  | "orders"
+  | "disputes"
+  | "catalog"
+  | "audit-logs";
 
 const TABS: Array<{ value: Tab; label: string; Icon: typeof Eye }> = [
   { value: "overview", label: "Overview", Icon: Eye },
@@ -39,6 +47,8 @@ const TABS: Array<{ value: Tab; label: string; Icon: typeof Eye }> = [
   { value: "users", label: "Users", Icon: Users },
   { value: "orders", label: "Orders", Icon: Package },
   { value: "disputes", label: "Disputes", Icon: FileText },
+  { value: "catalog", label: "Catalog", Icon: ShoppingBag },
+  { value: "audit-logs", label: "Audit logs", Icon: ShieldAlert },
 ];
 
 function money(value: string) {
@@ -117,6 +127,8 @@ export default function AdminConsole() {
         {activeTab === "users" && <UsersPanel />}
         {activeTab === "orders" && <OrdersPanel />}
         {activeTab === "disputes" && <DisputesPanel />}
+        {activeTab === "catalog" && <CatalogPanel />}
+        {activeTab === "audit-logs" && <AuditLogsPanel />}
       </div>
     </div>
   );
@@ -145,6 +157,11 @@ function Overview() {
     { label: "Total orders", value: summary.data.total_orders, Icon: Package },
     { label: "Platform revenue", value: money(summary.data.platform_revenue), Icon: CheckCircle2 },
     { label: "Sold listings", value: summary.data.sold_listings, Icon: Gavel },
+    {
+      label: "Platform fee rate",
+      value: `${(Number(summary.data.platform_fee_rate) * 100).toFixed(2)}%`,
+      Icon: CheckCircle2,
+    },
   ];
 
   return (
@@ -742,6 +759,201 @@ function DisputeCard({ dispute }: { dispute: SystemDispute }) {
         </form>
       )}
     </article>
+  );
+}
+
+function CatalogPanel() {
+  const refresh = useAdminRefresh();
+  const [categoryName, setCategoryName] = useState("");
+  const [brandName, setBrandName] = useState("");
+  const [sizeName, setSizeName] = useState("");
+  const [sizeKind, setSizeKind] = useState("top");
+
+  const categories = useQuery({
+    queryKey: ["system-admin", "categories"],
+    queryFn: adminService.categories,
+  });
+  const brands = useQuery({
+    queryKey: ["system-admin", "brands"],
+    queryFn: adminService.brands,
+  });
+  const sizes = useQuery({
+    queryKey: ["system-admin", "sizes"],
+    queryFn: adminService.sizes,
+  });
+
+  const createCategory = useMutation({
+    mutationFn: () => adminService.createCategory({ name: categoryName.trim() }),
+    onSuccess: () => {
+      setCategoryName("");
+      showToast("Category added.", "success", "ReWear");
+      refresh();
+    },
+  });
+  const createBrand = useMutation({
+    mutationFn: () => adminService.createBrand({ name: brandName.trim() }),
+    onSuccess: () => {
+      setBrandName("");
+      showToast("Brand added.", "success", "ReWear");
+      refresh();
+    },
+  });
+  const createSize = useMutation({
+    mutationFn: () => adminService.createSize({ kind: sizeKind, name: sizeName.trim() }),
+    onSuccess: () => {
+      setSizeName("");
+      showToast("Size added.", "success", "ReWear");
+      refresh();
+    },
+  });
+  const deleteCategory = useMutation({
+    mutationFn: adminService.deleteCategory,
+    onSuccess: () => {
+      showToast("Category deleted.", "success", "ReWear");
+      refresh();
+    },
+  });
+  const deleteBrand = useMutation({
+    mutationFn: adminService.deleteBrand,
+    onSuccess: () => {
+      showToast("Brand deleted.", "success", "ReWear");
+      refresh();
+    },
+  });
+  const deleteSize = useMutation({
+    mutationFn: adminService.deleteSize,
+    onSuccess: () => {
+      showToast("Size deleted.", "success", "ReWear");
+      refresh();
+    },
+  });
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <section className="rounded-3xl border border-leaf-300/40 bg-white p-5">
+        <h2 className="font-semibold text-charcoal">Categories</h2>
+        <form
+          className="mt-3 flex gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (categoryName.trim()) createCategory.mutate();
+          }}
+        >
+          <Input value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="New category" />
+          <Button type="submit" disabled={createCategory.isPending}>Add</Button>
+        </form>
+        <div className="mt-4 grid gap-2">
+          {categories.data?.map((item) => (
+            <div key={item.id} className="flex items-center justify-between rounded-xl bg-cream/60 px-3 py-2 text-sm">
+              <span>{item.name}</span>
+              <Button variant="ghost" onClick={() => deleteCategory.mutate(item.id)} disabled={deleteCategory.isPending}>
+                Delete
+              </Button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-leaf-300/40 bg-white p-5">
+        <h2 className="font-semibold text-charcoal">Brands</h2>
+        <form
+          className="mt-3 flex gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (brandName.trim()) createBrand.mutate();
+          }}
+        >
+          <Input value={brandName} onChange={(event) => setBrandName(event.target.value)} placeholder="New brand" />
+          <Button type="submit" disabled={createBrand.isPending}>Add</Button>
+        </form>
+        <div className="mt-4 grid gap-2">
+          {brands.data?.map((item) => (
+            <div key={item.id} className="flex items-center justify-between rounded-xl bg-cream/60 px-3 py-2 text-sm">
+              <span>{item.name}</span>
+              <Button variant="ghost" onClick={() => deleteBrand.mutate(item.id)} disabled={deleteBrand.isPending}>
+                Delete
+              </Button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-leaf-300/40 bg-white p-5">
+        <h2 className="font-semibold text-charcoal">Sizes</h2>
+        <form
+          className="mt-3 grid gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (sizeName.trim()) createSize.mutate();
+          }}
+        >
+          <select className={inputClass} value={sizeKind} onChange={(event) => setSizeKind(event.target.value)}>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="shoes">Shoes</option>
+            <option value="one_size">One size</option>
+          </select>
+          <div className="flex gap-2">
+            <Input value={sizeName} onChange={(event) => setSizeName(event.target.value)} placeholder="New size" />
+            <Button type="submit" disabled={createSize.isPending}>Add</Button>
+          </div>
+        </form>
+        <div className="mt-4 grid gap-2">
+          {sizes.data?.map((item) => (
+            <div key={item.id} className="flex items-center justify-between rounded-xl bg-cream/60 px-3 py-2 text-sm">
+              <span>{item.name} <span className="text-charcoal/50">({item.kind})</span></span>
+              <Button variant="ghost" onClick={() => deleteSize.mutate(item.id)} disabled={deleteSize.isPending}>
+                Delete
+              </Button>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function AuditLogsPanel() {
+  const [search, setSearch] = useState("");
+  const logs = useQuery({
+    queryKey: ["system-admin", "audit-logs", search],
+    queryFn: () => adminService.auditLogs({ q: search.trim() || undefined }),
+  });
+
+  if (logs.isPending) return <Loading />;
+  if (logs.isError || !logs.data) return <LoadError />;
+
+  return (
+    <div className="grid gap-4">
+      <Input
+        className="max-w-sm"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Search action or target…"
+      />
+      {logs.data.length === 0 && <Empty text="No audit logs found." />}
+      <div className="grid gap-3">
+        {logs.data.map((log) => (
+          <article key={log.id} className="rounded-3xl border border-leaf-300/40 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold">{log.action}</p>
+                <p className="text-xs text-charcoal/55">
+                  {log.target_type} #{log.target_id} · by {log.actor_name ?? "system"} ·{" "}
+                  {new Date(log.created_at).toLocaleString("en-PH")}
+                </p>
+              </div>
+              {log.ip_address && <span className="text-xs text-charcoal/50">{log.ip_address}</span>}
+            </div>
+            {Object.keys(log.metadata).length > 0 && (
+              <pre className="mt-3 overflow-x-auto rounded-xl bg-cream/70 p-3 text-xs text-charcoal/75">
+                {JSON.stringify(log.metadata, null, 2)}
+              </pre>
+            )}
+          </article>
+        ))}
+      </div>
+    </div>
   );
 }
 

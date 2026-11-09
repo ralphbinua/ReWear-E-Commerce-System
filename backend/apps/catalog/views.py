@@ -5,6 +5,7 @@ from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
@@ -93,9 +94,13 @@ class ListingViewSet(viewsets.ModelViewSet):
         return ListingDetailSerializer
 
     def perform_create(self, serializer):
+        if self.request.user.is_staff:
+            raise PermissionDenied("Staff accounts can't create marketplace listings.")
         serializer.save(seller=self.request.user)
 
     def perform_update(self, serializer):
+        if self.request.user.is_staff:
+            raise PermissionDenied("Staff accounts can't edit marketplace listings.")
         listing = serializer.instance
         previous_end_at = listing.end_at
         updated = serializer.save()
@@ -126,6 +131,11 @@ class ListingViewSet(viewsets.ModelViewSet):
             listing.id,
             {"from": previous_end_at.isoformat(), "to": listing.end_at.isoformat()},
         )
+
+    def perform_destroy(self, instance):
+        if self.request.user.is_staff:
+            raise PermissionDenied("Staff accounts can't delete marketplace listings.")
+        super().perform_destroy(instance)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
