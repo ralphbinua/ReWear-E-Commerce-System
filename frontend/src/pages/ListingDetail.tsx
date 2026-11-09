@@ -6,6 +6,7 @@ import { ArrowLeft, Clock, Gavel, History, MessageCircle } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { cn } from "../lib/utils";
+import { apiErrorMessage } from "../lib/api-errors";
 import { showToast } from "../lib/toast";
 import { useAuth } from "../context/useAuth";
 import { listingsService, type ListingDetail as ListingDetailData } from "../services/listings";
@@ -17,20 +18,6 @@ function money(value: string | null | undefined) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-}
-
-function apiErrorMessage(error: unknown, fallback: string) {
-  const data = (error as { response?: { data?: unknown } })?.response?.data;
-  if (typeof data === "string") return data;
-  if (data && typeof data === "object") {
-    const record = data as Record<string, unknown>;
-    if (typeof record.detail === "string") return record.detail;
-    for (const value of Object.values(record)) {
-      const first = Array.isArray(value) ? value[0] : value;
-      if (typeof first === "string") return first;
-    }
-  }
-  return fallback;
 }
 
 function useCountdown(endAt: string | null) {
